@@ -346,27 +346,27 @@ const Dashboard = () => {
   const activityData = Array.isArray(recentActivity) && recentActivity.length > 0 ? recentActivity : mockRecentActivity;
 
   const renderOverview = () => (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {statsCards.map((card, index) => (
-          <div key={index} className="bg-white rounded-lg shadow p-6">
+          <div key={index} className="bg-white rounded-lg shadow p-4 sm:p-6">
             <div className="flex items-center">
-              <div className={`p-3 rounded-full ${card.color} bg-opacity-10`}>
-                <card.icon className={`h-6 w-6 ${card.color.replace('bg-', 'text-')}`} />
+              <div className={`p-2 sm:p-3 rounded-full ${card.color} bg-opacity-10`}>
+                <card.icon className={`h-5 w-5 sm:h-6 sm:w-6 ${card.color.replace('bg-', 'text-')}`} />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">{card.title}</p>
-                <p className="text-2xl font-semibold text-gray-900">{card.value}</p>
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">{card.title}</p>
+                <p className="text-lg sm:text-2xl font-semibold text-gray-900">{card.value}</p>
               </div>
             </div>
-            <div className="mt-4 flex items-center">
+            <div className="mt-3 sm:mt-4 flex items-center">
               {card.changeType === 'positive' ? (
-                <ArrowUpIcon className="h-4 w-4 text-green-500" />
+                <ArrowUpIcon className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" />
               ) : (
-                <ArrowDownIcon className="h-4 w-4 text-red-500" />
+                <ArrowDownIcon className="h-3 w-3 sm:h-4 sm:w-4 text-red-500" />
               )}
-              <span className={`ml-1 text-sm font-medium ${
+              <span className={`ml-1 text-xs sm:text-sm font-medium ${
                 card.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
               }`}>
                 {card.change}
@@ -377,82 +377,82 @@ const Dashboard = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow p-8">
-        <h3 className="text-xl font-semibold text-gray-900 mb-6">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="bg-white rounded-lg shadow p-4 sm:p-8">
+        <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">Quick Actions</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <Link
             to="/campaigns"
-            className="flex items-center p-6 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
+            className="flex items-center p-4 sm:p-6 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
           >
-            <div className="p-3 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
-              <MegaphoneIcon className="h-6 w-6 text-blue-600" />
+            <div className="p-2 sm:p-3 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+              <MegaphoneIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
             </div>
-            <div className="ml-4">
-              <p className="font-medium text-gray-900">View Campaigns</p>
-              <p className="text-sm text-gray-500">Manage your campaigns</p>
+            <div className="ml-3 sm:ml-4">
+              <p className="font-medium text-gray-900 text-sm sm:text-base">View Campaigns</p>
+              <p className="text-xs sm:text-sm text-gray-500">Manage your campaigns</p>
             </div>
           </Link>
           <Link
             to="/automation"
-            className="flex items-center p-6 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
+            className="flex items-center p-4 sm:p-6 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
           >
-            <div className="p-3 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
-              <CogIcon className="h-6 w-6 text-green-600" />
+            <div className="p-2 sm:p-3 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
+              <CogIcon className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
             </div>
-            <div className="ml-4">
-              <p className="font-medium text-gray-900">View Automation</p>
-              <p className="text-sm text-gray-500">Manage automation rules</p>
+            <div className="ml-3 sm:ml-4">
+              <p className="font-medium text-gray-900 text-sm sm:text-base">View Automation</p>
+              <p className="text-xs sm:text-sm text-gray-500">Manage automation rules</p>
             </div>
           </Link>
           <Link
             to="/instagram-accounts"
-            className="flex items-center p-6 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
+            className="flex items-center p-4 sm:p-6 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
           >
-            <div className="p-3 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
-              <UserGroupIcon className="h-6 w-6 text-purple-600" />
+            <div className="p-2 sm:p-3 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
+              <UserGroupIcon className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
             </div>
-            <div className="ml-4">
-              <p className="font-medium text-gray-900">Connect Account</p>
-              <p className="text-sm text-gray-500">Add Instagram account</p>
+            <div className="ml-3 sm:ml-4">
+              <p className="font-medium text-gray-900 text-sm sm:text-base">Connect Account</p>
+              <p className="text-xs sm:text-sm text-gray-500">Add Instagram account</p>
             </div>
           </Link>
           <Link
             to="/analytics"
-            className="flex items-center p-6 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
+            className="flex items-center p-4 sm:p-6 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
           >
-            <div className="p-3 bg-pink-100 rounded-lg group-hover:bg-pink-200 transition-colors">
-              <EyeIcon className="h-6 w-6 text-pink-600" />
+            <div className="p-2 sm:p-3 bg-pink-100 rounded-lg group-hover:bg-pink-200 transition-colors">
+              <EyeIcon className="h-5 w-5 sm:h-6 sm:w-6 text-pink-600" />
             </div>
-            <div className="ml-4">
-              <p className="font-medium text-gray-900">View Analytics</p>
-              <p className="text-sm text-gray-500">Track performance</p>
+            <div className="ml-3 sm:ml-4">
+              <p className="font-medium text-gray-900 text-sm sm:text-base">View Analytics</p>
+              <p className="text-xs sm:text-sm text-gray-500">Track performance</p>
             </div>
           </Link>
         </div>
       </div>
 
       {/* Recent Activity & Quick Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activity */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Recent Activity</h3>
-          <div className="space-y-4">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Recent Activity</h3>
+          <div className="space-y-3 sm:space-y-4">
             {activityData.slice(indexOfFirstItem, indexOfLastItem).length > 0 ? (
               activityData.slice(indexOfFirstItem, indexOfLastItem).map((activity, index) => (
-                <div key={index} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
+                <div key={index} className="flex items-center space-x-3 sm:space-x-4 p-3 bg-gray-50 rounded-lg">
                   <div className="flex-shrink-0">
-                    <ClockIcon className="h-5 w-5 text-gray-400" />
+                    <ClockIcon className="h-4 w-5 text-gray-400" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-xs sm:text-sm font-medium text-gray-900">
                       {activity?.type || 'Activity'} - {activity?.description || 'No description'}
                     </p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-xs sm:text-sm text-gray-500">
                       {new Date(activity?.createdAt || Date.now()).toLocaleString()}
                     </p>
                   </div>
                   <div className="flex-shrink-0">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                       activity?.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                     }`}>
                       {activity?.status || 'pending'}
@@ -461,36 +461,36 @@ const Dashboard = () => {
                 </div>
               ))
             ) : (
-              <div className="text-center py-8">
-                <ClockIcon className="mx-auto h-12 w-12 text-gray-400" />
+              <div className="text-center py-6 sm:py-8">
+                <ClockIcon className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">No recent activity</h3>
-                <p className="mt-1 text-sm text-gray-500">Your social media activities will appear here.</p>
+                <p className="mt-1 text-xs sm:text-sm text-gray-500">Your social media activities will appear here.</p>
               </div>
             )}
           </div>
           
           {/* Pagination */}
           {activityData.length > itemsPerPage && (
-            <div className="mt-6 flex items-center justify-between">
+            <div className="mt-4 sm:mt-6 flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ChevronLeftIcon className="h-4 w-4" />
-                  Previous
+                  <ChevronLeftIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Previous</span>
                 </button>
-                <span className="text-sm text-gray-700">
+                <span className="text-xs sm:text-sm text-gray-700">
                   Page {currentPage} of {Math.ceil(activityData.length / itemsPerPage)}
                 </span>
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === Math.ceil(activityData.length / itemsPerPage)}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Next
-                  <ChevronRightIcon className="h-4 w-4" />
+                  <span className="hidden sm:inline">Next</span>
+                  <ChevronRightIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                 </button>
               </div>
             </div>
@@ -498,56 +498,56 @@ const Dashboard = () => {
         </div>
 
         {/* Quick Stats */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Quick Stats</h3>
-          <div className="space-y-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Quick Stats</h3>
+          <div className="space-y-4 sm:space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <div className="p-2 bg-blue-100 rounded-lg">
-                  <EyeIcon className="h-5 w-5 text-blue-600" />
+                  <EyeIcon className="h-4 w-5 sm:h-5 sm:w-5 text-blue-600" />
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-900">Total Views</p>
-                  <p className="text-sm text-gray-500">This week</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-900">Total Views</p>
+                  <p className="text-xs sm:text-sm text-gray-500">This week</p>
                 </div>
               </div>
-              <span className="text-lg font-semibold text-gray-900">12.5K</span>
+              <span className="text-base sm:text-lg font-semibold text-gray-900">12.5K</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <div className="p-2 bg-red-100 rounded-lg">
-                  <HeartIcon className="h-5 w-5 text-red-600" />
+                  <HeartIcon className="h-4 w-5 sm:h-5 sm:w-5 text-red-600" />
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-900">Total Likes</p>
-                  <p className="text-sm text-gray-500">This week</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-900">Total Likes</p>
+                  <p className="text-xs sm:text-sm text-gray-500">This week</p>
                 </div>
               </div>
-              <span className="text-lg font-semibold text-gray-900">1.2K</span>
+              <span className="text-base sm:text-lg font-semibold text-gray-900">1.2K</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <div className="p-2 bg-green-100 rounded-lg">
-                  <ChatBubbleLeftIcon className="h-5 w-5 text-green-600" />
+                  <ChatBubbleLeftIcon className="h-4 w-5 sm:h-5 sm:w-5 text-green-600" />
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-900">Total Comments</p>
-                  <p className="text-sm text-gray-500">This week</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-900">Total Comments</p>
+                  <p className="text-xs sm:text-sm text-gray-500">This week</p>
                 </div>
               </div>
-              <span className="text-lg font-semibold text-gray-900">89</span>
+              <span className="text-base sm:text-lg font-semibold text-gray-900">89</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <div className="p-2 bg-purple-100 rounded-lg">
-                  <ShareIcon className="h-5 w-5 text-purple-600" />
+                  <ShareIcon className="h-4 w-5 sm:h-5 sm:w-5 text-purple-600" />
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-900">Total Shares</p>
-                  <p className="text-sm text-gray-500">This week</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-900">Total Shares</p>
+                  <p className="text-xs sm:text-sm text-gray-500">This week</p>
                 </div>
               </div>
-              <span className="text-lg font-semibold text-gray-900">23</span>
+              <span className="text-base sm:text-lg font-semibold text-gray-900">23</span>
             </div>
           </div>
         </div>
@@ -557,26 +557,26 @@ const Dashboard = () => {
 
   const renderCampaigns = () => (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
         <div>
-          <h3 className="text-xl font-semibold text-gray-900">Active Campaigns</h3>
-          <p className="text-gray-500">Manage your social media campaigns</p>
+          <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Active Campaigns</h3>
+          <p className="text-gray-500 text-sm">Manage your social media campaigns</p>
         </div>
         <Link
           to="/campaigns/new"
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+          className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
         >
           <PlusIcon className="h-4 w-4 mr-2" />
           New Campaign
         </Link>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {Array.isArray(campaigns) && campaigns.length > 0 ? (
           campaigns.map((campaign) => (
-            <div key={campaign?._id} className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-lg font-semibold text-gray-900">{campaign?.name || 'Untitled Campaign'}</h4>
+            <div key={campaign?._id} className="bg-white rounded-lg shadow p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <h4 className="text-base sm:text-lg font-semibold text-gray-900">{campaign?.name || 'Untitled Campaign'}</h4>
                 <span className={`px-2 py-1 text-xs rounded-full ${
                   campaign?.status === 'active' ? 'bg-green-100 text-green-800' : 
                   campaign?.status === 'paused' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
@@ -584,32 +584,32 @@ const Dashboard = () => {
                   {campaign?.status || 'draft'}
                 </span>
               </div>
-              <p className="text-gray-600 text-sm mb-4">{campaign?.description || 'No description'}</p>
+              <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">{campaign?.description || 'No description'}</p>
               <div className="space-y-2">
-                <div className="flex items-center text-sm text-gray-500">
-                  <CalendarIcon className="h-4 w-4 mr-2" />
+                <div className="flex items-center text-xs sm:text-sm text-gray-500">
+                  <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                   Scheduled: {campaign?.scheduledDate ? new Date(campaign.scheduledDate).toLocaleDateString() : 'Not set'}
                 </div>
-                <div className="flex items-center text-sm text-gray-500">
-                  <EyeIcon className="h-4 w-4 mr-2" />
+                <div className="flex items-center text-xs sm:text-sm text-gray-500">
+                  <EyeIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                   Reach: {campaign?.reach || 0}
                 </div>
-                <div className="flex items-center text-sm text-gray-500">
-                  <HeartIcon className="h-4 w-4 mr-2" />
+                <div className="flex items-center text-xs sm:text-sm text-gray-500">
+                  <HeartIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                   Engagement: {campaign?.engagement || 0}
                 </div>
               </div>
             </div>
           ))
         ) : (
-          <div className="col-span-full text-center py-12">
-            <MegaphoneIcon className="mx-auto h-12 w-12 text-gray-400" />
+          <div className="col-span-full text-center py-8 sm:py-12">
+            <MegaphoneIcon className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No campaigns</h3>
-            <p className="mt-1 text-sm text-gray-500">Get started by creating your first campaign.</p>
-            <div className="mt-6">
+            <p className="mt-1 text-xs sm:text-sm text-gray-500">Get started by creating your first campaign.</p>
+            <div className="mt-4 sm:mt-6">
               <Link
                 to="/campaigns/new"
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
               >
                 <PlusIcon className="h-4 w-4 mr-2" />
                 Create Campaign
@@ -624,19 +624,19 @@ const Dashboard = () => {
   const renderLive = () => (
     <div className="space-y-6">
       {/* Filters and Grouping */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <FireIcon className="h-5 w-5 mr-2 text-orange-500" />
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 space-y-4 sm:space-y-0">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center">
+            <FireIcon className="h-4 w-5 sm:h-5 sm:w-5 mr-2 text-orange-500" />
             Live Activity Feed
           </h3>
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
             <div className="flex items-center space-x-2">
-              <FunnelIcon className="h-4 w-4 text-gray-400" />
+              <FunnelIcon className="h-3 w-4 sm:h-4 sm:w-4 text-gray-400" />
               <select
                 value={liveActivityFilter}
                 onChange={(e) => setLiveActivityFilter(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+                className="border border-gray-300 rounded-md px-2 sm:px-3 py-1 text-xs sm:text-sm"
               >
                 <option value="all">All Activities</option>
                 <option value="automation">Automation</option>
@@ -647,11 +647,11 @@ const Dashboard = () => {
               </select>
             </div>
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-500">Group by:</span>
+              <span className="text-xs sm:text-sm text-gray-500">Group by:</span>
               <select
                 value={liveActivityGroup}
                 onChange={(e) => setLiveActivityGroup(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+                className="border border-gray-300 rounded-md px-2 sm:px-3 py-1 text-xs sm:text-sm"
               >
                 <option value="time">Time</option>
                 <option value="type">Type</option>
@@ -662,14 +662,14 @@ const Dashboard = () => {
         
         <div className="space-y-4">
           {Object.entries(groupedLiveActivity()).map(([groupName, activities]) => (
-            <div key={groupName} className="space-y-4">
-              <h4 className="text-md font-semibold text-gray-900">{groupName}</h4>
+            <div key={groupName} className="space-y-3 sm:space-y-4">
+              <h4 className="text-sm sm:text-md font-semibold text-gray-900">{groupName}</h4>
               {activities.map((activity) => (
-                <div key={activity.id} className={`flex items-center space-x-4 p-4 ${activity.bgColor} rounded-lg`}>
-                  <activity.icon className={`h-5 w-5 ${activity.color}`} />
+                <div key={activity.id} className={`flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 ${activity.bgColor} rounded-lg`}>
+                  <activity.icon className={`h-4 w-5 sm:h-5 sm:w-5 ${activity.color}`} />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{activity.title}</p>
-                    <p className="text-sm text-gray-500">{activity.description}</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-900">{activity.title}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">{activity.description}</p>
                   </div>
                   <span className="text-xs text-gray-400">{activity.time}</span>
                 </div>
@@ -684,42 +684,42 @@ const Dashboard = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-red-500" />
+      <div className="text-center py-8 sm:py-12">
+        <ExclamationTriangleIcon className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-red-500" />
         <h3 className="mt-2 text-sm font-medium text-gray-900">Error loading dashboard</h3>
-        <p className="mt-1 text-sm text-gray-500">{error}</p>
+        <p className="mt-1 text-xs sm:text-sm text-gray-500">{error}</p>
       </div>
     );
   }
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Social Media Dashboard</h1>
-          <p className="text-gray-600 mt-2">Manage your Instagram campaigns and automation</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Social Media Dashboard</h1>
+          <p className="text-gray-600 mt-1 sm:mt-2 text-sm">Manage your Instagram campaigns and automation</p>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
           <Link
             to="/content"
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            className="inline-flex items-center px-3 sm:px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
           >
-            <PhotoIcon className="h-4 w-4 mr-2" />
+            <PhotoIcon className="h-3 w-4 sm:h-4 sm:w-4 mr-2" />
             View Content
           </Link>
           <Link
             to="/account-settings"
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            className="inline-flex items-center px-3 sm:px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
           >
-            <UserIcon className="h-4 w-4 mr-2" />
+            <UserIcon className="h-3 w-4 sm:h-4 sm:w-4 mr-2" />
             Account Settings
           </Link>
         </div>
@@ -727,18 +727,18 @@ const Dashboard = () => {
 
       {/* Tab Navigation */}
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`py-2 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              <tab.icon className="h-5 w-5 inline mr-2" />
+              <tab.icon className="h-4 w-5 sm:h-5 sm:w-5 inline mr-1 sm:mr-2" />
               {tab.name}
             </button>
           ))}
@@ -746,7 +746,7 @@ const Dashboard = () => {
       </div>
 
       {/* Tab Content */}
-      <div className="mt-8">
+      <div className="mt-6">
         {activeTab === 'overview' && renderOverview()}
         {activeTab === 'campaigns' && renderCampaigns()}
         {activeTab === 'live' && renderLive()}

@@ -15,7 +15,8 @@ import {
   EyeSlashIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  GlobeAltIcon
 } from '@heroicons/react/24/outline';
 
 const AccountSettings = () => {
@@ -23,7 +24,11 @@ const AccountSettings = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+  const navRef = React.useRef(null);
 
   const [profileData, setProfileData] = useState({
     firstName: 'John',
@@ -50,6 +55,24 @@ const AccountSettings = () => {
     securityAlerts: true
   });
 
+  // Platform-specific settings from old Settings page
+  const [platformSettings, setPlatformSettings] = useState({
+    webhooks: {
+      enabled: true,
+      url: 'https://your-domain.com/api/webhooks/instagram',
+      verifyToken: 'your-verify-token'
+    },
+    automation: {
+      enabled: true,
+      maxExecutionsPerDay: 100
+    },
+    apiKeys: {
+      instagramClientId: '',
+      instagramClientSecret: '',
+      redirectUri: 'https://your-domain.com/api/auth/instagram/callback'
+    }
+  });
+
   const [subscriptionData, setSubscriptionData] = useState({
     currentPlan: 'Pro',
     planPrice: '$29/month',
@@ -66,46 +89,6 @@ const AccountSettings = () => {
       accounts: 10,
       storage: '10GB'
     }
-  });
-
-  const [tickets, setTickets] = useState([
-    {
-      id: 1,
-      title: 'Automation not working properly',
-      type: 'bug',
-      status: 'open',
-      priority: 'high',
-      createdAt: '2024-01-10T10:30:00Z',
-      lastUpdated: '2024-01-12T14:20:00Z',
-      description: 'My automation rule is not triggering when users comment with specific keywords.'
-    },
-    {
-      id: 2,
-      title: 'Feature request: Bulk campaign scheduling',
-      type: 'feature',
-      status: 'in_progress',
-      priority: 'medium',
-      createdAt: '2024-01-08T09:15:00Z',
-      lastUpdated: '2024-01-11T16:45:00Z',
-      description: 'It would be great to have the ability to schedule multiple campaigns at once.'
-    },
-    {
-      id: 3,
-      title: 'Account connection issue',
-      type: 'support',
-      status: 'resolved',
-      priority: 'high',
-      createdAt: '2024-01-05T11:00:00Z',
-      lastUpdated: '2024-01-07T13:30:00Z',
-      description: 'Having trouble connecting my Instagram business account.'
-    }
-  ]);
-
-  const [newTicket, setNewTicket] = useState({
-    title: '',
-    type: 'support',
-    priority: 'medium',
-    description: ''
   });
 
   const [connectedAccounts, setConnectedAccounts] = useState([
@@ -132,13 +115,54 @@ const AccountSettings = () => {
     }
   ]);
 
+  const [newTicket, setNewTicket] = useState({
+    title: '',
+    type: 'support',
+    priority: 'medium',
+    description: ''
+  });
+
+  const [tickets, setTickets] = useState([
+    {
+      id: 1,
+      title: 'Instagram API Connection Issue',
+      type: 'bug',
+      priority: 'high',
+      status: 'open',
+      description: 'Having trouble connecting my Instagram account to the platform. Getting authentication errors.',
+      createdAt: '2024-01-10T09:00:00Z',
+      lastUpdated: '2024-01-12T14:30:00Z'
+    },
+    {
+      id: 2,
+      title: 'Feature Request: Bulk Campaign Creation',
+      type: 'feature',
+      priority: 'medium',
+      status: 'in_progress',
+      description: 'Would like to be able to create multiple campaigns at once instead of one by one.',
+      createdAt: '2024-01-08T11:00:00Z',
+      lastUpdated: '2024-01-11T16:45:00Z'
+    },
+    {
+      id: 3,
+      title: 'Automation Not Working',
+      type: 'support',
+      priority: 'urgent',
+      status: 'closed',
+      description: 'My automation rules are not triggering as expected. Need immediate assistance.',
+      createdAt: '2024-01-05T13:00:00Z',
+      lastUpdated: '2024-01-09T10:15:00Z'
+    }
+  ]);
+
   const tabs = [
     { id: 'profile', name: 'Profile', icon: UserIcon },
     { id: 'security', name: 'Security', icon: ShieldCheckIcon },
     { id: 'notifications', name: 'Notifications', icon: BellIcon },
+    { id: 'platform', name: 'Platform Settings', icon: CogIcon },
     { id: 'accounts', name: 'Connected Accounts', icon: UserGroupIcon },
     { id: 'subscription', name: 'Subscription', icon: CreditCardIcon },
-    { id: 'tickets', name: 'Support Tickets', icon: QuestionMarkCircleIcon },
+    { id: 'tickets', name: 'Tickets', icon: QuestionMarkCircleIcon },
     { id: 'help', name: 'Help & Support', icon: InformationCircleIcon }
   ];
 
@@ -146,7 +170,6 @@ const AccountSettings = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
@@ -165,7 +188,6 @@ const AccountSettings = () => {
     }
     setLoading(true);
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       setMessage({ type: 'success', text: 'Password changed successfully!' });
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -177,6 +199,19 @@ const AccountSettings = () => {
     }
   };
 
+  const handlePlatformSettingsSave = async () => {
+    setSaving(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setMessage({ type: 'success', text: 'Platform settings saved successfully!' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to save platform settings' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleNotificationToggle = (key) => {
     setNotificationSettings(prev => ({
       ...prev,
@@ -184,18 +219,51 @@ const AccountSettings = () => {
     }));
   };
 
+  const handlePlatformSettingChange = (section, key, value) => {
+    setPlatformSettings(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [key]: value
+      }
+    }));
+  };
+
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
-      // Clear user session
       localStorage.removeItem('token');
       navigate('/login');
     }
   };
 
-  const handleSwitchAccount = () => {
-    // This would typically open a modal or redirect to account selection
-    alert('Account switching functionality would be implemented here');
+  const checkScrollButtons = () => {
+    if (navRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = navRef.current;
+      setCanScrollLeft(scrollLeft > 0);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1);
+    }
   };
+
+  const scrollTo = (direction) => {
+    if (navRef.current) {
+      const scrollAmount = 200;
+      const newScrollLeft = navRef.current.scrollLeft + (direction === 'left' ? -scrollAmount : scrollAmount);
+      navRef.current.scrollTo({
+        left: newScrollLeft,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const handleScroll = () => {
+    checkScrollButtons();
+  };
+
+  React.useEffect(() => {
+    checkScrollButtons();
+    window.addEventListener('resize', checkScrollButtons);
+    return () => window.removeEventListener('resize', checkScrollButtons);
+  }, []);
 
   const handleDisconnectAccount = (accountId) => {
     if (window.confirm('Are you sure you want to disconnect this account?')) {
@@ -304,7 +372,7 @@ const AccountSettings = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-2.5"
+                className="absolute right-1 p-3"
               >
                 {showPassword ? <EyeSlashIcon className="h-5 w-5 text-gray-400" /> : <EyeIcon className="h-5 w-5 text-gray-400" />}
               </button>
@@ -351,10 +419,7 @@ const AccountSettings = () => {
                 <p className="text-sm text-gray-500">Switch to a different account</p>
               </div>
             </div>
-            <button
-              onClick={handleSwitchAccount}
-              className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700"
-            >
+            <button className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700">
               Switch
             </button>
           </div>
@@ -410,6 +475,141 @@ const AccountSettings = () => {
     </div>
   );
 
+  const renderPlatformSettings = () => (
+    <div className="space-y-6">
+      {/* Webhooks */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center mb-4">
+          <GlobeAltIcon className="h-6 w-6 text-green-500 mr-2" />
+          <h3 className="text-lg font-medium text-gray-900">Webhooks</h3>
+        </div>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-gray-700">Enable Webhooks</label>
+              <p className="text-sm text-gray-500">Receive real-time updates from Instagram</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={platformSettings.webhooks.enabled}
+              onChange={(e) => handlePlatformSettingChange('webhooks', 'enabled', e.target.checked)}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Webhook URL</label>
+            <input
+              type="url"
+              value={platformSettings.webhooks.url}
+              onChange={(e) => handlePlatformSettingChange('webhooks', 'url', e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              placeholder="https://your-domain.com/api/webhooks/instagram"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Verify Token</label>
+            <input
+              type="text"
+              value={platformSettings.webhooks.verifyToken}
+              onChange={(e) => handlePlatformSettingChange('webhooks', 'verifyToken', e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              placeholder="your-verify-token"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Automation */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center mb-4">
+          <CogIcon className="h-6 w-6 text-purple-500 mr-2" />
+          <h3 className="text-lg font-medium text-gray-900">Automation</h3>
+        </div>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-gray-700">Enable Automation</label>
+              <p className="text-sm text-gray-500">Allow automated responses to Instagram interactions</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={platformSettings.automation.enabled}
+              onChange={(e) => handlePlatformSettingChange('automation', 'enabled', e.target.checked)}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Max Executions Per Day</label>
+            <input
+              type="number"
+              value={platformSettings.automation.maxExecutionsPerDay}
+              onChange={(e) => handlePlatformSettingChange('automation', 'maxExecutionsPerDay', parseInt(e.target.value))}
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              min="1"
+              max="1000"
+            />
+            <p className="text-sm text-gray-500 mt-1">Limit the number of automated responses per day</p>
+          </div>
+        </div>
+      </div>
+
+      {/* API Configuration */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center mb-4">
+          <KeyIcon className="h-6 w-6 text-yellow-500 mr-2" />
+          <h3 className="text-lg font-medium text-gray-900">API Configuration</h3>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Instagram Client ID</label>
+            <input
+              type="text"
+              value={platformSettings.apiKeys.instagramClientId}
+              onChange={(e) => handlePlatformSettingChange('apiKeys', 'instagramClientId', e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              placeholder="Your Instagram App Client ID"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Instagram Client Secret</label>
+            <input
+              type="password"
+              value={platformSettings.apiKeys.instagramClientSecret}
+              onChange={(e) => handlePlatformSettingChange('apiKeys', 'instagramClientSecret', e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              placeholder="Your Instagram App Client Secret"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Redirect URI</label>
+            <input
+              type="url"
+              value={platformSettings.apiKeys.redirectUri}
+              onChange={(e) => handlePlatformSettingChange('apiKeys', 'redirectUri', e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              placeholder="https://your-domain.com/api/auth/instagram/callback"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={handlePlatformSettingsSave}
+          disabled={saving}
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+        >
+          {saving ? 'Saving...' : 'Save Platform Settings'}
+        </button>
+      </div>
+    </div>
+  );
+
   const renderConnectedAccounts = () => (
     <div className="bg-white rounded-lg shadow p-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-6">Connected Social Media Accounts</h3>
@@ -453,32 +653,6 @@ const AccountSettings = () => {
             </div>
           </div>
         ))}
-      </div>
-    </div>
-  );
-
-  const renderBilling = () => (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-6">Billing Information</h3>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-          <div>
-            <h4 className="text-sm font-medium text-gray-900">Current Plan</h4>
-            <p className="text-sm text-gray-500">{subscriptionData.currentPlan} Plan - {subscriptionData.planPrice}</p>
-          </div>
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            Active
-          </span>
-        </div>
-        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-          <div>
-            <h4 className="text-sm font-medium text-gray-900">Next Billing Date</h4>
-            <p className="text-sm text-gray-500">{new Date(subscriptionData.nextBillingDate).toLocaleDateString()}</p>
-          </div>
-          <button className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700">
-            Manage
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -744,17 +918,17 @@ const AccountSettings = () => {
   );
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Account Settings</h1>
-          <p className="text-gray-600 mt-2">Manage your account preferences and settings</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Account Settings</h1>
+          <p className="text-gray-600 mt-1 sm:mt-2 text-sm">Manage your account preferences and platform settings</p>
           <Link
             to="/dashboard"
-            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 mt-4"
+            className="inline-flex items-center px-3 sm:px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 mt-4"
           >
-            <ArrowLeftIcon className="h-4 w-4 mr-2" />
+            <ArrowLeftIcon className="h-3 w-4 sm:h-4 sm:w-4 mr-2" />
             Back to Dashboard
           </Link>
         </div>
@@ -777,30 +951,73 @@ const AccountSettings = () => {
       )}
 
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <tab.icon className="h-5 w-5 inline mr-2" />
-              {tab.name}
-            </button>
-          ))}
-        </nav>
+      <div className="border-b border-gray-200 relative">
+        {/* Left Arrow Button */}
+        {canScrollLeft && (
+          <button
+            onClick={() => scrollTo('left')}
+            className="absolute left-0 top-0 bottom-0 z-10 flex items-center justify-center w-10 sm:w-8 bg-white bg-opacity-90 hover:bg-opacity-100 border-r border-gray-200 transition-all duration-200"
+            aria-label="Scroll left"
+          >
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+        )}
+
+        {/* Right Arrow Button */}
+        {canScrollRight && (
+          <button
+            onClick={() => scrollTo('right')}
+            className="absolute right-0 top-0 bottom-0 z-10 flex items-center justify-center w-10 sm:w-8 bg-white bg-opacity-90 hover:bg-opacity-100 border-l border-gray-200 transition-all duration-200"
+            aria-label="Scroll right"
+          >
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        )}
+
+        {/* Tab Navigation Container */}
+        <div className={`relative ${canScrollLeft ? 'pl-10 sm:pl-8' : ''} ${canScrollRight ? 'pr-10 sm:pr-8' : ''}`}>
+          <nav 
+            ref={navRef}
+            onScroll={handleScroll}
+            className="-mb-px flex space-x-1 sm:space-x-1 md:space-x-2 lg:space-x-4 overflow-x-auto scrollbar-hide pb-1 scroll-smooth touch-pan-x"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`py-3 px-3 sm:py-2 sm:px-2 md:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap flex-shrink-0 min-w-fit transition-colors duration-200 ${
+                  activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+              <tab.icon className="h-4 w-4 sm:h-5 sm:w-5 inline mr-1 flex-shrink-0" />
+              <span className="hidden xl:inline">{tab.name}</span>
+              <span className="hidden lg:inline xl:hidden">{tab.name.length > 10 ? tab.name.substring(0, 10) + '...' : tab.name}</span>
+              <span className="hidden md:inline lg:hidden">{tab.name.length > 8 ? tab.name.substring(0, 8) + '...' : tab.name}</span>
+              <span className="hidden sm:inline md:hidden">{tab.name.length > 6 ? tab.name.substring(0, 6) + '...' : tab.name}</span>
+              <span className="sm:hidden">{tab.name}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* Gradient fade indicators for scrollable content */}
+        <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-white to-transparent pointer-events-none"></div>
+        <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-white to-transparent pointer-events-none"></div>
       </div>
 
       {/* Tab Content */}
-      <div className="mt-8">
+      <div className="mt-6">
         {activeTab === 'profile' && renderProfile()}
         {activeTab === 'security' && renderSecurity()}
         {activeTab === 'notifications' && renderNotifications()}
+        {activeTab === 'platform' && renderPlatformSettings()}
         {activeTab === 'accounts' && renderConnectedAccounts()}
         {activeTab === 'subscription' && renderSubscription()}
         {activeTab === 'tickets' && renderTickets()}
