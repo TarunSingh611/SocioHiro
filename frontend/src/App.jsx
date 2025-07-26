@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import useUserStore from './store/userStore';
+import { useDebug } from './utils/debug';
 import Layout from './components/Layout';
 import AuthCallback from './pages/AuthCallback';
 import Dashboard from './pages/Dashboard';
@@ -16,6 +18,19 @@ import './App.css';
 
 function App() {
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+  const debug = useDebug('App');
+
+  useEffect(() => {
+    debug.logMount({ isAuthenticated });
+
+    return () => {
+      debug.logUnmount();
+    };
+  }, []);
+
+  useEffect(() => {
+    debug.logStateChange(null, { isAuthenticated });
+  }, [isAuthenticated]);
 
   return (
     <Router>
@@ -26,7 +41,7 @@ function App() {
         <Route path="/auth/callback" element={<AuthCallback />} />
         {/* Login: redirect if already logged in */}
         <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />} />
-        
+
         {/* Protected routes with Layout */}
         <Route path="/dashboard" element={
           isAuthenticated ? (

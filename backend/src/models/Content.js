@@ -50,17 +50,37 @@ const contentSchema = new mongoose.Schema({
   publishedAt: {
     type: Date
   },
+  // Instagram-specific fields
   instagramId: {
     type: String
   },
   permalink: {
     type: String
   },
+  // Source field to distinguish between Instagram and local content
+  source: {
+    type: String,
+    enum: ['instagram', 'local'],
+    default: 'local'
+  },
+  // Instagram media type
+  instagramMediaType: {
+    type: String,
+    enum: ['IMAGE', 'VIDEO', 'CAROUSEL_ALBUM', 'STORY'],
+    default: 'IMAGE'
+  },
+  // Instagram thumbnail URL for videos
+  thumbnailUrl: {
+    type: String
+  },
   stats: {
     likes: { type: Number, default: 0 },
     comments: { type: Number, default: 0 },
     shares: { type: Number, default: 0 },
-    reach: { type: Number, default: 0 }
+    reach: { type: Number, default: 0 },
+    impressions: { type: Number, default: 0 },
+    engagement: { type: Number, default: 0 },
+    saved: { type: Number, default: 0 }
   },
   status: {
     type: String,
@@ -69,6 +89,15 @@ const contentSchema = new mongoose.Schema({
   },
   errorMessage: {
     type: String
+  },
+  // Instagram insights data
+  insights: {
+    impressions: { type: Number, default: 0 },
+    reach: { type: Number, default: 0 },
+    engagement: { type: Number, default: 0 },
+    saved: { type: Number, default: 0 },
+    videoViews: { type: Number, default: 0 },
+    videoViewRate: { type: Number, default: 0 }
   }
 }, {
   timestamps: true
@@ -78,6 +107,8 @@ const contentSchema = new mongoose.Schema({
 contentSchema.index({ userId: 1, createdAt: -1 });
 contentSchema.index({ userId: 1, isPublished: 1 });
 contentSchema.index({ userId: 1, status: 1 });
+contentSchema.index({ userId: 1, source: 1 });
+contentSchema.index({ instagramId: 1 });
 
 // Virtual for full scheduled datetime
 contentSchema.virtual('scheduledDateTime').get(function() {
@@ -100,6 +131,19 @@ contentSchema.methods.isReadyToPublish = function() {
   return this.status === 'scheduled' && this.scheduledDateTime && this.scheduledDateTime <= new Date();
 };
 
+// Method to check if content is from Instagram
+contentSchema.methods.isFromInstagram = function() {
+  return this.source === 'instagram' || this.instagramId;
+};
+
+// Method to get engagement rate
+contentSchema.methods.getEngagementRate = function() {
+  if (this.stats.reach > 0) {
+    return ((this.stats.likes + this.stats.comments) / this.stats.reach * 100).toFixed(2);
+  }
+  return 0;
+};
+
 // Pre-save middleware to update status
 contentSchema.pre('save', function(next) {
   if (this.isPublished) {
@@ -109,6 +153,12 @@ contentSchema.pre('save', function(next) {
   } else {
     this.status = 'draft';
   }
+  
+  // Update source based on Instagram ID
+  if (this.instagramId) {
+    this.source = 'instagram';
+  }
+  
   next();
 });
 

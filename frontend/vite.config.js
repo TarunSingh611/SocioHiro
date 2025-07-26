@@ -7,6 +7,14 @@ export default defineConfig({
   server: {
     allowedHosts: [
       'drops-reconstruction-website-maintaining.trycloudflare.com'
-    ]
+    ],
+    port: 5173,
+    host: true
+  },
+  build: {
+    sourcemap: true
+  },
+  define: {
+    __DEV__: true
   }
 })
