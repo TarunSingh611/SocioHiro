@@ -18,11 +18,11 @@ import useUserStore from '../store/userStore';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+  { name: 'Content', href: '/content', icon: PhotoIcon },
   { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
   { name: 'Campaigns', href: '/campaigns', icon: CalendarIcon },
   { name: 'Instagram Accounts', href: '/instagram-accounts', icon: UserGroupIcon },
   { name: 'Automation', href: '/automation', icon: ChatBubbleLeftRightIcon },
-  { name: 'Content', href: '/content', icon: PhotoIcon },
   { name: 'Account Settings', href: '/account-settings', icon: CogIcon },
 ];
 

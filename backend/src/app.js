@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const passport = require('passport');
 const session = require('express-session');
+const path = require('path');
 const routes = require('./routes');
 
 // Import passport configuration
@@ -20,6 +21,9 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'secret',

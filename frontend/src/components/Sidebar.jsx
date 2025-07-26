@@ -1,8 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import {
   HomeIcon,
-  CubeIcon,
-  ShoppingCartIcon,
   ChartBarIcon,
   CogIcon,
   UserGroupIcon,
@@ -12,8 +10,6 @@ import {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-  { name: 'Products', href: '/products', icon: CubeIcon },
-  { name: 'Orders', href: '/orders', icon: ShoppingCartIcon },
   { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
   { name: 'Campaigns', href: '/campaigns', icon: CalendarIcon },
   { name: 'Instagram Accounts', href: '/instagram-accounts', icon: UserGroupIcon },

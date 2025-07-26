@@ -10,6 +10,7 @@ const instagramRoutes = require('./instagram');
 const webhookRoutes = require('./webhooks');
 const analyticsRoutes = require('./analytics');
 const cronRoutes = require('./cron');
+const contentRoutes = require('./content');
 
 router.use('/auth', authRoutes);
 router.use('/automation', automationRoutes);
@@ -20,6 +21,7 @@ router.use('/instagram', instagramRoutes);
 router.use('/webhooks', webhookRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/cron', cronRoutes);
+router.use('/content', contentRoutes);
 
 router.get('/', (req, res) => {
   res.json({ message: 'API root' });
