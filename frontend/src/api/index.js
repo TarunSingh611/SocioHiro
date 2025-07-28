@@ -72,10 +72,17 @@ export const deleteCampaign = (id) => api.delete(`/campaigns/${id}`);
 
 // Automation
 export const getAutomations = () => api.get('/automation');
-export const getAutomation = (id) => api.get(`/automation/${id}`);
+export const getAutomationById = (id) => api.get(`/automation/${id}`);
 export const createAutomation = (data) => api.post('/automation', data);
 export const updateAutomation = (id, data) => api.put(`/automation/${id}`, data);
 export const deleteAutomation = (id) => api.delete(`/automation/${id}`);
+export const toggleAutomationStatus = (id) => api.patch(`/automation/${id}/toggle`);
+export const getAutomationStats = () => api.get('/automation/stats');
+export const getAutomationLogs = (filters = {}) => api.get('/automation/logs', { params: filters });
+export const testAutomation = (id, testData) => api.post(`/automation/${id}/test`, testData);
+export const bulkUpdateAutomations = (automationIds, updates) => api.patch('/automation/bulk/update', { automationIds, updates });
+export const bulkDeleteAutomations = (automationIds) => api.delete('/automation/bulk/delete', { data: { automationIds } });
+export const exportAutomationTemplate = () => api.get('/automation/template/export');
 
 // Settings
 export const getSettings = () => api.get('/settings');

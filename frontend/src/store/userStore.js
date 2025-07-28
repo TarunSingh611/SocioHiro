@@ -190,7 +190,6 @@ const useUserStore = create(
           const response = await api.get('/auth/status');
           const { user } = response.data;
           set({ user, accessToken: token, isAuthenticated: true, isLoading: false });
-          console.log('Auth status check successful:', { user, isAuthenticated: true });
           return true;
         } catch (error) {
           console.error('Auth status check failed:', error);

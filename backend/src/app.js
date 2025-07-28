@@ -32,7 +32,11 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use(passport.initialize());
 
 // Routes
-app.use('/api', routes);
+app.use('/api', (req, res, next)=>
+  {
+    console.log(req.url);
+    return routes(req, res, next);
+  });
 
 // Health check endpoint
 app.get('/health', (req, res) => {

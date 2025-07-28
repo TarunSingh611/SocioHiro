@@ -157,6 +157,43 @@ const buildCaption = (content) => {
   return caption;
 };
 
+// Get content for automation creation
+const getContentForAutomation = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    // For now, return mock data like the automation controller
+    // This ensures the frontend works while we figure out the content sync
+    const content = [
+      {
+        _id: 'content_1',
+        instagramId: '17841405793087218',
+        caption: 'Sample post 1',
+        mediaType: 'IMAGE',
+        instagramMediaId: '17841405793087218',
+        permalink: 'https://instagram.com/p/sample1',
+        automations: [],
+        source: 'instagram'
+      },
+      {
+        _id: 'content_2',
+        instagramId: '17841405793087219',
+        caption: 'Sample post 2',
+        mediaType: 'VIDEO',
+        instagramMediaId: '17841405793087219',
+        permalink: 'https://instagram.com/p/sample2',
+        automations: [],
+        source: 'instagram'
+      }
+    ];
+    
+    res.json(content);
+  } catch (error) {
+    console.error('Error getting content for automation:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   getInstagramContent,
   getInstagramInsights,
@@ -165,5 +202,6 @@ module.exports = {
   getComments,
   replyToComment,
   extractHashtags,
-  buildCaption
+  buildCaption,
+  getContentForAutomation
 }; 

@@ -6,8 +6,117 @@ const Campaign = require('../models/Campaign');
 
 class ContentSyncService {
   constructor() {
-    this.syncInterval = 30 * 60 * 1000; // 30 minutes
-    this.lastSync = new Map(); // Track last sync time per user
+    // Remove automatic sync interval - we'll sync on-demand only
+    this.syncCache = new Map(); // Cache sync results to avoid duplicate API calls
+    this.lastSyncCheck = new Map(); // Track last sync check per user
+  }
+
+  // Smart sync: Only sync when content is accessed and only if changes detected
+  async smartSyncOnAccess(userId, options = {}) {
+    try {
+      const user = await User.findById(userId);
+      if (!user || !user.accessToken) {
+        throw new Error('User not found or no Instagram access token');
+      }
+
+      // Validate token before attempting sync
+      const instagramApi = new InstagramApiService(user.accessToken);
+      const isTokenValid = await instagramApi.isTokenValid();
+      
+      if (!isTokenValid) {
+        throw new Error('Instagram access token is invalid or expired. Please re-authenticate with Instagram.');
+      }
+
+      // Check if we need to sync by comparing Instagram data with our stored data
+      const needsSync = await this.checkIfSyncNeeded(userId, user.accessToken);
+      
+      if (needsSync) {
+        console.log(`🔄 Smart sync triggered for user ${userId} - changes detected`);
+        return await this.syncInstagramContent(userId);
+      } else {
+        console.log(`✅ No sync needed for user ${userId} - data is current`);
+        return { success: true, syncedCount: 0, message: 'No changes detected' };
+      }
+    } catch (error) {
+      console.error('Smart sync error:', error);
+      throw error;
+    }
+  }
+
+  // Check if sync is needed by comparing Instagram data with our stored data
+  async checkIfSyncNeeded(userId, accessToken) {
+    try {
+      const instagramApi = new InstagramApiService(accessToken);
+      
+      // Validate token first
+      const isTokenValid = await instagramApi.isTokenValid();
+      if (!isTokenValid) {
+        throw new Error('Instagram access token is invalid or expired');
+      }
+      
+      // Get recent Instagram posts (last 10 to check for changes)
+      const recentInstagramPosts = await instagramApi.getInstagramMedia(10);
+      
+      // Get our stored Instagram posts
+      const storedPosts = await Content.find({ 
+        userId: userId, 
+        source: 'instagram' 
+      }).sort({ createdAt: -1 }).limit(10);
+
+      // If we have no stored posts, we need to sync
+      if (storedPosts.length === 0) {
+        console.log('No stored posts found - sync needed');
+        return true;
+      }
+
+      // Check if any recent Instagram posts are missing from our database
+      for (const instagramPost of recentInstagramPosts) {
+        const exists = storedPosts.some(stored => stored.instagramId === instagramPost.id);
+        if (!exists) {
+          console.log(`New Instagram post ${instagramPost.id} found - sync needed`);
+          return true;
+        }
+      }
+
+      // Check if any stored posts have been deleted from Instagram
+      for (const storedPost of storedPosts) {
+        const stillExists = recentInstagramPosts.some(ig => ig.id === storedPost.instagramId);
+        if (!stillExists) {
+          console.log(`Instagram post ${storedPost.instagramId} no longer exists - cleanup needed`);
+          return true;
+        }
+      }
+
+      // Check if engagement stats have changed significantly
+      for (const storedPost of storedPosts) {
+        const instagramPost = recentInstagramPosts.find(ig => ig.id === storedPost.instagramId);
+        if (instagramPost) {
+          const currentLikes = storedPost.stats?.likes || 0;
+          const currentComments = storedPost.stats?.comments || 0;
+          const newLikes = instagramPost.like_count || 0;
+          const newComments = instagramPost.comments_count || 0;
+          
+          // If engagement changed by more than 5%, sync is needed
+          const likeChange = Math.abs(newLikes - currentLikes) / Math.max(currentLikes, 1);
+          const commentChange = Math.abs(newComments - currentComments) / Math.max(currentComments, 1);
+          
+          if (likeChange > 0.05 || commentChange > 0.05) {
+            console.log(`Engagement changed for post ${storedPost.instagramId} - sync needed`);
+            return true;
+          }
+        }
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error checking if sync needed:', error);
+      // If token is invalid, don't sync - let the user know they need to re-authenticate
+      if (error.message.includes('token') || error.message.includes('OAuth')) {
+        throw new Error('Instagram access token is invalid or expired. Please re-authenticate with Instagram.');
+      }
+      // If we can't check, assume sync is needed
+      return true;
+    }
   }
 
   // Sync Instagram content metadata (not the actual content data)
@@ -24,6 +133,8 @@ class ContentSyncService {
       
       // Store only our app data, not Instagram content
       const syncedContent = [];
+      const updatedContent = [];
+      
       for (const media of instagramMedia) {
         // Check if we already have app data for this Instagram post
         let existingContent = await Content.findOne({ 
@@ -51,22 +162,49 @@ class ContentSyncService {
               performanceScore: 0,
               lastAnalyzed: null
             },
-            status: 'published'
+            status: 'published',
+            // Store current stats
+            stats: {
+              likes: media.like_count || 0,
+              comments: media.comments_count || 0,
+              reach: 0
+            }
           };
 
           const newContent = new Content(appData);
           await newContent.save();
           syncedContent.push(newContent);
+        } else {
+          // Update existing content with fresh stats
+          const updatedStats = {
+            likes: media.like_count || 0,
+            comments: media.comments_count || 0,
+            reach: existingContent.stats?.reach || 0
+          };
+          
+          if (JSON.stringify(existingContent.stats) !== JSON.stringify(updatedStats)) {
+            existingContent.stats = updatedStats;
+            existingContent.updatedAt = new Date();
+            await existingContent.save();
+            updatedContent.push(existingContent);
+          }
         }
       }
 
-      // Update last sync time
-      this.lastSync.set(userId.toString(), new Date());
+      // Clean up posts that no longer exist on Instagram
+      const instagramIds = instagramMedia.map(m => m.id);
+      const deletedCount = await Content.deleteMany({
+        userId: userId,
+        source: 'instagram',
+        instagramId: { $nin: instagramIds }
+      });
 
       return {
         success: true,
         syncedCount: syncedContent.length,
-        message: `Successfully synced ${syncedContent.length} Instagram posts metadata`
+        updatedCount: updatedContent.length,
+        deletedCount: deletedCount.deletedCount,
+        message: `Synced ${syncedContent.length} new posts, updated ${updatedContent.length} posts, deleted ${deletedCount.deletedCount} old posts`
       };
 
     } catch (error) {
@@ -89,9 +227,26 @@ class ContentSyncService {
     // Get our app data
     const appData = await Content.find(query)
       .populate('campaigns', 'name description status')
-      .populate('automations', 'name description triggerType isActive')
+      .populate('automations', 'name description triggerType actionType isActive keywords executionCount')
       .sort({ createdAt: -1 })
       .limit(parseInt(limit));
+
+    // Get automations that apply to all content
+    const AutomationRule = require('../models/AutomationRule');
+    const allContentAutomations = await AutomationRule.find({
+      userId: userId,
+      applyToAllContent: true,
+      isActive: true
+    }).select('name description triggerType actionType isActive keywords executionCount');
+
+    // Add all-content automations to each content item
+    const enrichedAppData = appData.map(content => ({
+      ...content.toObject(),
+      automations: [
+        ...(content.automations || []),
+        ...allContentAutomations
+      ]
+    }));
 
     // Fetch fresh Instagram data and combine
     const user = await User.findById(userId);
@@ -102,7 +257,7 @@ class ContentSyncService {
     const instagramApi = new InstagramApiService(user.accessToken);
     const combinedContent = [];
 
-    for (const content of appData) {
+    for (const content of enrichedAppData) {
       if (content.instagramId) {
         try {
           // Fetch fresh Instagram data
@@ -132,7 +287,7 @@ class ContentSyncService {
             content: '',
             mediaUrls: [],
             hashtags: [],
-            stats: { likes: 0, comments: 0, reach: 0 },
+            stats: content.stats || { likes: 0, comments: 0, reach: 0 },
             insights: { impressions: 0, reach: 0, likes: 0, comments: 0, saved: 0, videoViews: 0 }
           };
           combinedContent.push(minimalData);
@@ -419,24 +574,40 @@ class ContentSyncService {
 
   // Check if sync is needed
   isSyncNeeded(userId) {
-    const lastSyncTime = this.lastSync.get(userId.toString());
-    if (!lastSyncTime) return true;
-    
-    const timeSinceLastSync = Date.now() - lastSyncTime.getTime();
-    return timeSinceLastSync > this.syncInterval;
+    // This method is now deprecated - use checkIfSyncNeeded instead
+    // Keeping for backward compatibility but it will always return true
+    // to ensure sync happens when called
+    return true;
   }
 
   // Get last sync time for user
   getLastSyncTime(userId) {
-    return this.lastSync.get(userId.toString());
+    // Since we're not tracking sync times anymore, return null
+    return null;
   }
 
-  // Manual sync trigger
+  // Manual sync trigger (now uses smart sync)
   async triggerSync(userId) {
     try {
-      const result = await this.syncInstagramContent(userId);
+      const result = await this.smartSyncOnAccess(userId);
       return result;
     } catch (error) {
+      throw error;
+    }
+  }
+
+  // Force sync (bypasses change detection)
+  async forceSync(userId) {
+    try {
+      const user = await User.findById(userId);
+      if (!user || !user.accessToken) {
+        throw new Error('User not found or no Instagram access token');
+      }
+
+      console.log(`🔄 Force sync triggered for user ${userId}`);
+      return await this.syncInstagramContent(userId);
+    } catch (error) {
+      console.error('Force sync error:', error);
       throw error;
     }
   }

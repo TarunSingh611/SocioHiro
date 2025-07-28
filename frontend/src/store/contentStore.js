@@ -26,7 +26,6 @@ const useContentStore = create((set, get) => ({
       
       // Fetch real content from database
       const contentData = await contentService.fetchContent();
-      console.log('Content data:', contentData);
       // Handle the API response structure
       set({ 
         content: contentData?.content || [], 

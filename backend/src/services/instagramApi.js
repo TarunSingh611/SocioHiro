@@ -378,6 +378,55 @@ class InstagramApiService {
   async getProducts() {
     throw new Error('Product catalog is not supported by the Instagram API with Instagram Login.');
   }
+
+  // Create webhook subscription
+  async createWebhookSubscription(webhookConfig) {
+    try {
+      const response = await this.axiosInstance.post(`${this.baseUrl}/me/webhooks`, webhookConfig);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating webhook subscription:', error);
+      throw error;
+    }
+  }
+
+  // Get webhook subscriptions
+  async getWebhookSubscriptions() {
+    try {
+      const response = await this.axiosInstance.get(`${this.baseUrl}/me/webhooks`);
+      return response.data.data || [];
+    } catch (error) {
+      console.error('Error getting webhook subscriptions:', error);
+      throw error;
+    }
+  }
+
+  // Delete webhook subscription
+  async deleteWebhookSubscription(subscriptionId) {
+    try {
+      await this.axiosInstance.delete(`${this.baseUrl}/me/webhooks/${subscriptionId}`);
+      return true;
+    } catch (error) {
+      console.error('Error deleting webhook subscription:', error);
+      throw error;
+    }
+  }
+
+  // Update webhook fields
+  async updateWebhookFields(fields) {
+    try {
+      const response = await this.axiosInstance.post(`${this.baseUrl}/me/webhooks`, {
+        object: 'instagram',
+        callback_url: process.env.WEBHOOK_CALLBACK_URL,
+        verify_token: process.env.WEBHOOK_VERIFY_TOKEN,
+        fields: fields
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating webhook fields:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = InstagramApiService; 

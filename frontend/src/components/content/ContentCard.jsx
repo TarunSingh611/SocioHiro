@@ -19,12 +19,14 @@ import {
   HeartIcon as HeartSolidIcon,
   BookmarkIcon as BookmarkSolidIcon
 } from '@heroicons/react/24/solid';
+import AutomationModal from './AutomationModal';
 
 const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [showAppData, setShowAppData] = useState(false);
+  const [showAutomationModal, setShowAutomationModal] = useState(false);
 
   const {
     _id,
@@ -363,7 +365,7 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
 
           {/* Campaigns */}
           <div className="bg-gray-50 rounded-lg p-3">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-700">Campaigns</span>
               <button 
                 className="text-blue-600 hover:text-blue-800 text-xs font-medium"
@@ -372,48 +374,24 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
                 Manage
               </button>
             </div>
-            {campaigns.length > 0 ? (
-              <div className="space-y-1">
-                {campaigns.map((campaign, index) => (
-                  <div key={index} className="flex items-center justify-between text-xs">
-                    <span className="text-gray-600">{campaign.name || `Campaign ${index + 1}`}</span>
-                    <span className="text-blue-600 font-medium">Active</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-xs text-gray-500">No campaigns assigned</div>
-            )}
           </div>
 
-          {/* Automations */}
+          {/* Automations - Hidden, only shown in modal */}
           <div className="bg-gray-50 rounded-lg p-3 mb-3">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-700">Automations</span>
               <button 
                 className="text-green-600 hover:text-green-800 text-xs font-medium"
-                onClick={() => {/* TODO: Add automation management */}}
+                onClick={() => setShowAutomationModal(true)}
               >
                 Manage
               </button>
             </div>
-            {automations.length > 0 ? (
-              <div className="space-y-1">
-                {automations.map((automation, index) => (
-                  <div key={index} className="flex items-center justify-between text-xs">
-                    <span className="text-gray-600">{automation.name || `Automation ${index + 1}`}</span>
-                    <span className="text-green-600 font-medium">Active</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-xs text-gray-500">No automations assigned</div>
-            )}
           </div>
 
           {/* Watch Lists */}
           <div className="bg-gray-50 rounded-lg p-3 mb-3">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-700">Watch Lists</span>
               <button 
                 className="text-purple-600 hover:text-purple-800 text-xs font-medium"
@@ -422,18 +400,6 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
                 Manage
               </button>
             </div>
-            {watchLists.length > 0 ? (
-              <div className="space-y-1">
-                {watchLists.map((watchList, index) => (
-                  <div key={index} className="flex items-center justify-between text-xs">
-                    <span className="text-gray-600">{watchList.name || `Watch List ${index + 1}`}</span>
-                    <span className="text-purple-600 font-medium">Monitoring</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-xs text-gray-500">No watch lists assigned</div>
-            )}
           </div>
 
           {/* Last Analyzed */}
@@ -498,6 +464,16 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
       <div className="transition-all duration-300 ease-in-out">
         {showAppData ? renderAppDataView() : renderInstagramView()}
       </div>
+
+      {/* Automation Modal */}
+      {showAutomationModal && (
+        <AutomationModal
+          isOpen={showAutomationModal}
+          onClose={() => setShowAutomationModal(false)}
+          automations={automations}
+          content={content}
+        />
+      )}
     </div>
   );
 };

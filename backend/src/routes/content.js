@@ -8,6 +8,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
+const Content = require('../models/Content');
 
 console.log('📁 Content routes file loaded');
 
@@ -98,7 +99,7 @@ const upload = multer({
 router.get('/', requireAuth, async (req, res) => {
   try {
     
-    const { source = 'all', limit = 25, sync = 'auto' } = req.query;
+    const { source = 'all', limit = 25, sync = 'smart', forceSync = false } = req.query;
     
     // User object should come from JWT token via requireAuth middleware
     if (!req.user) {
@@ -108,23 +109,39 @@ router.get('/', requireAuth, async (req, res) => {
     
 
     
-    debug.log('GET /content', { source, limit, sync, userId: req.user._id });
+    debug.log('GET /content', { source, limit, sync, forceSync, userId: req.user._id });
 
-    // Auto-sync Instagram content if needed
-    if (sync === 'auto' && contentSyncService.isSyncNeeded(req.user._id)) {
-      debug.log('Auto-sync needed, triggering sync');
+    // Smart sync on access (only if changes detected or forced)
+    if (sync === 'smart' || forceSync === 'true') {
+      debug.log('Smart sync triggered on content access');
       try {
-        await contentSyncService.triggerSync(req.user._id);
-        debug.log('Auto-sync completed successfully');
+        if (forceSync === 'true') {
+          await contentSyncService.forceSync(req.user._id);
+          debug.log('Force sync completed successfully');
+        } else {
+          await contentSyncService.smartSyncOnAccess(req.user._id);
+          debug.log('Smart sync completed successfully');
+        }
       } catch (syncError) {
-        debug.warn('Auto-sync failed, continuing with cached data', syncError.message);
+        debug.warn('Sync failed, continuing with cached data', syncError.message);
+        
+        // If it's a token error, return a specific error response
+        if (syncError.message.includes('token') || syncError.message.includes('OAuth') || syncError.message.includes('re-authenticate')) {
+          return res.status(401).json({ 
+            error: 'Instagram token expired',
+            message: 'Your Instagram access token has expired. Please re-authenticate with Instagram.',
+            requiresReauth: true,
+            cachedData: await getCachedContent(req.user._id, { limit: parseInt(limit), source })
+          });
+        }
       }
     }
 
     // Get combined content using sync service
     const result = await contentSyncService.getCombinedContent(req.user._id, {
       limit: parseInt(limit),
-      source: source
+      source: source,
+      forceSync: false // Don't force sync again, we already did it above
     });
 
     debug.log('Content fetched successfully', { count: result.content?.length || 0 });
@@ -138,11 +155,52 @@ router.get('/', requireAuth, async (req, res) => {
   } catch (error) {
     debug.error('Error fetching content', error);
     console.error('❌ GET /api/content - Error:', error.message);
+    
+    // Handle token errors specifically
+    if (error.message.includes('token') || error.message.includes('OAuth') || error.message.includes('re-authenticate')) {
+      return res.status(401).json({ 
+        error: 'Instagram token expired',
+        message: 'Your Instagram access token has expired. Please re-authenticate with Instagram.',
+        requiresReauth: true
+      });
+    }
+    
     res.status(500).json({ error: error.message });
   }
 });
 
-// Manual sync Instagram content
+// Helper function to get cached content when sync fails
+async function getCachedContent(userId, options) {
+  try {
+    const { limit = 25, source = 'all' } = options;
+    
+    let query = { userId: userId };
+    
+    if (source === 'instagram') {
+      query.source = 'instagram';
+    } else if (source === 'local') {
+      query.source = 'local';
+    }
+
+    const content = await Content.find(query)
+      .populate('campaigns', 'name description status')
+      .populate('automations', 'name description triggerType isActive')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+
+    return {
+      content: content,
+      source: source,
+      totalCount: content.length,
+      isCached: true
+    };
+  } catch (error) {
+    console.error('Error getting cached content:', error);
+    return { content: [], totalCount: 0, isCached: true };
+  }
+}
+
+// Manual sync Instagram content (smart sync)
 router.post('/sync', async (req, res) => {
   try {
     const result = await contentSyncService.triggerSync(req.user._id);
@@ -157,13 +215,28 @@ router.post('/sync', async (req, res) => {
   }
 });
 
+// Force sync Instagram content (bypasses change detection)
+router.post('/sync/force', async (req, res) => {
+  try {
+    const result = await contentSyncService.forceSync(req.user._id);
+    res.json({
+      success: true,
+      ...result,
+      lastSync: contentSyncService.getLastSyncTime(req.user._id)
+    });
+  } catch (error) {
+    console.error('Error force syncing content:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get sync status
 router.get('/sync/status', async (req, res) => {
   try {
     res.json({
       lastSync: contentSyncService.getLastSyncTime(req.user._id),
       syncNeeded: contentSyncService.isSyncNeeded(req.user._id),
-      syncInterval: contentSyncService.syncInterval
+      syncStrategy: 'smart-on-demand'
     });
   } catch (error) {
     console.error('Error getting sync status:', error);
@@ -215,8 +288,6 @@ router.get('/local', async (req, res) => {
 // Get content by ID - check both Instagram and local database
 router.get('/:id', async (req, res) => {
   try {
-    const Content = require('../models/Content');
-
     // First check local database
     let content = await Content.findOne({
       _id: req.params.id,
@@ -254,7 +325,6 @@ router.get('/:id', async (req, res) => {
 // Create new content (for drafts and scheduled posts)
 router.post('/', async (req, res) => {
   try {
-    const Content = require('../models/Content');
     const contentData = {
       ...req.body,
       userId: req.user._id,
@@ -279,7 +349,6 @@ router.post('/', async (req, res) => {
 // Update content (local database only)
 router.put('/:id', async (req, res) => {
   try {
-    const Content = require('../models/Content');
     const content = await Content.findOneAndUpdate(
       { _id: req.params.id, userId: req.user._id },
       req.body,
@@ -304,7 +373,6 @@ router.put('/:id', async (req, res) => {
 // Delete content (local database only)
 router.delete('/:id', async (req, res) => {
   try {
-    const Content = require('../models/Content');
     const content = await Content.findOneAndDelete({
       _id: req.params.id,
       userId: req.user._id
@@ -506,7 +574,6 @@ router.delete('/:id/watchlist/:watchListName', async (req, res) => {
 // Get content performance analysis
 router.get('/:id/performance', async (req, res) => {
   try {
-    const Content = require('../models/Content');
     const content = await Content.findById(req.params.id);
     
     if (!content) {
@@ -535,6 +602,9 @@ router.get('/:id/performance', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Get content for automation
+router.get('/automation', requireAuth, contentController.getContentForAutomation);
 
 // Instagram-specific routes
 router.get('/instagram/content', contentController.getInstagramContent);

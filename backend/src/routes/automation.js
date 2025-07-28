@@ -1,52 +1,46 @@
 const express = require('express');
 const router = express.Router();
+const automationController = require('../controllers/automationController');
+const { requireAuth } = require('../middleware/auth');
 
-// Development-only mock data routes (no auth required)
-if (process.env.NODE_ENV === 'development') {
-  router.get('/', (req, res) => {
-    const mockAutomations = Array.from({ length: 4 }, (_, i) => ({
-      _id: `automation_${i + 1}`,
-      name: `Auto Response ${i + 1}`,
-      description: `Automated response rule for ${i + 1}`,
-      isActive: Math.random() > 0.5,
-      trigger: ["Comment", "DM", "Mention"][Math.floor(Math.random() * 3)],
-      action: ["Send DM", "Like", "Follow"][Math.floor(Math.random() * 3)],
-      keywords: ["product", "price", "info"],
-      responseMessage: `Thank you for your interest! Here's more information about our products.`,
-      executions: Math.floor(Math.random() * 100) + 10,
-      createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString()
-    }));
-    res.json(mockAutomations);
-  });
+// All routes require authentication
+router.use(requireAuth);
 
-  router.post('/', (req, res) => {
-    const newAutomation = {
-      _id: `automation_${Date.now()}`,
-      ...req.body,
-      isActive: true,
-      executions: 0,
-      createdAt: new Date().toISOString()
-    };
-    res.status(201).json(newAutomation);
-  });
+// Get all automations
+router.get('/', automationController.getAutomations);
 
-  router.put('/:id', (req, res) => {
-    const updatedAutomation = {
-      _id: req.params.id,
-      ...req.body,
-      updatedAt: new Date().toISOString()
-    };
-    res.json(updatedAutomation);
-  });
+// Get automation statistics
+router.get('/stats', automationController.getAutomationStats);
 
-  router.delete('/:id', (req, res) => {
-    res.json({ message: 'Automation deleted successfully' });
-  });
-} else {
-  // TODO: Add authentication middleware and automation endpoints for production
-  router.get('/', (req, res) => {
-    res.json({ message: 'Automation route placeholder' });
-  });
-}
+// Get automation analytics
+router.get('/analytics', automationController.getAutomationAnalytics);
+
+// Get automation logs
+router.get('/logs', automationController.getAutomationLogs);
+
+// Export automation template
+router.get('/template', automationController.exportAutomationTemplate);
+
+// Create new automation
+router.post('/', automationController.createAutomation);
+
+// Bulk operations
+router.post('/bulk/update', automationController.bulkUpdateAutomations);
+router.post('/bulk/delete', automationController.bulkDeleteAutomations);
+
+// Get automation by ID
+router.get('/:id', automationController.getAutomationById);
+
+// Update automation
+router.put('/:id', automationController.updateAutomation);
+
+// Delete automation
+router.delete('/:id', automationController.deleteAutomation);
+
+// Toggle automation status
+router.patch('/:id/toggle', automationController.toggleAutomationStatus);
+
+// Test automation
+router.post('/:id/test', automationController.testAutomation);
 
 module.exports = router; 

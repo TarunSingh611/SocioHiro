@@ -1,418 +1,217 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { createAutomation } from '../api';
-import {
-  PlusIcon,
-  ArrowLeftIcon,
-  BoltIcon,
-  ChatBubbleLeftIcon,
-  HeartIcon,
-  UserPlusIcon,
-  CogIcon,
-  BellIcon
-} from '@heroicons/react/24/outline';
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowLeftIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { useAddAutomation } from '../hooks/useAddAutomation';
+import StepProgress from '../components/automation/StepProgress';
+import BasicInfoStep from '../components/automation/BasicInfoStep';
+import TriggerActionStep from '../components/automation/TriggerActionStep';
+import ContentConditionsStep from '../components/automation/ContentConditionsStep';
+import ResponseMessageStep from '../components/automation/ResponseMessageStep';
 
 const AddAutomation = () => {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    isActive: true,
-    trigger: 'comment',
-    action: 'send_dm',
-    keywords: '',
-    responseMessage: '',
-    conditions: {
-      followerCount: '',
-      accountAge: '',
-      hasProfilePic: false,
-      isVerified: false
-    },
-    schedule: {
-      enabled: false,
-      startTime: '',
-      endTime: '',
-      timezone: 'UTC'
-    }
-  });
+  const {
+    content,
+    selectedContent,
+    currentStep,
+    loading,
+    error,
+    formData,
+    setSelectedContent,
+    setFormData,
+    nextStep,
+    prevStep,
+    handleSubmit,
+    isStepValid,
+    getStepValidationMessage
+  } = useAddAutomation();
+  
+  if (loading && currentStep === 1) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your content...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    try {
-      const automationData = {
-        ...formData,
-        keywords: formData.keywords ? formData.keywords.split(',').map(keyword => keyword.trim()) : [],
-        conditions: {
-          ...formData.conditions,
-          followerCount: parseInt(formData.conditions.followerCount) || 0,
-          accountAge: parseInt(formData.conditions.accountAge) || 0
-        }
-      };
-
-      await createAutomation(automationData);
-      navigate('/automation');
-    } catch (error) {
-      console.error('Error creating automation:', error);
-      alert('Error creating automation. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    
-    if (name.startsWith('conditions.')) {
-      const condition = name.split('.')[1];
-      setFormData(prev => ({
-        ...prev,
-        conditions: {
-          ...prev.conditions,
-          [condition]: type === 'checkbox' ? checked : value
-        }
-      }));
-    } else if (name.startsWith('schedule.')) {
-      const schedule = name.split('.')[1];
-      setFormData(prev => ({
-        ...prev,
-        schedule: {
-          ...prev.schedule,
-          [schedule]: type === 'checkbox' ? checked : value
-        }
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: type === 'checkbox' ? checked : value
-      }));
-    }
-  };
-
-  const triggerOptions = [
-    { value: 'comment', label: 'Comment', icon: ChatBubbleLeftIcon },
-    { value: 'dm', label: 'Direct Message', icon: ChatBubbleLeftIcon },
-    { value: 'mention', label: 'Mention', icon: BellIcon },
-    { value: 'like', label: 'Like', icon: HeartIcon },
-    { value: 'follow', label: 'Follow', icon: UserPlusIcon }
-  ];
-
-  const actionOptions = [
-    { value: 'send_dm', label: 'Send Direct Message', icon: ChatBubbleLeftIcon },
-    { value: 'like_post', label: 'Like Post', icon: HeartIcon },
-    { value: 'follow_user', label: 'Follow User', icon: UserPlusIcon },
-    { value: 'comment_post', label: 'Comment on Post', icon: ChatBubbleLeftIcon },
-    { value: 'send_story_reply', label: 'Reply to Story', icon: ChatBubbleLeftIcon }
-  ];
+  if (error && currentStep === 1) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <p className="text-red-600 mb-4">Error loading content: {error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Create New Automation</h1>
-          <p className="text-gray-600 mt-2">Set up automated responses and actions</p>
-          <Link
-            to="/automation"
-            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 mt-4"
-          >
-            <ArrowLeftIcon className="h-4 w-4 mr-2" />
-            Back to Automation
-          </Link>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Create Automation</h1>
+          <p className="text-gray-600 mt-1 sm:mt-2 text-sm">
+            Set up automated responses for your Instagram interactions
+          </p>
         </div>
+        <Link
+          to="/automation"
+          className="inline-flex items-center px-3 sm:px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+        >
+          <ArrowLeftIcon className="h-3 w-4 sm:h-4 sm:w-4 mr-2" />
+          Back to Automation
+        </Link>
       </div>
 
+      {/* Progress Indicator */}
+      <StepProgress currentStep={currentStep} />
+
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-2" />
+            <span className="text-sm font-medium text-red-800">Please fix the following:</span>
+          </div>
+          <p className="text-sm text-red-700 mt-1">{error}</p>
+        </div>
+      )}
+
       {/* Form */}
-      <div className="bg-white shadow rounded-lg">
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Basic Information */}
-          <div>
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Automation Name *
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                  placeholder="e.g., Auto Reply to Comments"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Status
-                </label>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    name="isActive"
-                    checked={formData.isActive}
-                    onChange={handleInputChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label className="ml-2 text-sm text-gray-700">
-                    Active
-                  </label>
-                </div>
-              </div>
-            </div>
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description
-              </label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                rows="3"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Describe what this automation does..."
-              />
-            </div>
-          </div>
+      <div className="bg-white rounded-lg shadow p-6 sm:p-8">
+        <form onSubmit={handleSubmit}>
+          {currentStep === 1 && (
+            <BasicInfoStep formData={formData} setFormData={setFormData} />
+          )}
+          
+          {currentStep === 2 && (
+            <TriggerActionStep formData={formData} setFormData={setFormData} />
+          )}
+          
+          {currentStep === 3 && (
+            <ContentConditionsStep 
+              formData={formData} 
+              setFormData={setFormData}
+              content={content}
+              selectedContent={selectedContent}
+              setSelectedContent={setSelectedContent}
+            />
+          )}
+          
+          {currentStep === 4 && (
+            <ResponseMessageStep formData={formData} setFormData={setFormData} />
+          )}
 
-          {/* Trigger Configuration */}
-          <div>
-            <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-              <BoltIcon className="h-5 w-5 mr-2" />
-              Trigger Configuration
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Trigger Type *
-                </label>
-                <select
-                  name="trigger"
-                  value={formData.trigger}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  {triggerOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Keywords (comma-separated)
-                </label>
-                <input
-                  type="text"
-                  name="keywords"
-                  value={formData.keywords}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="product, price, info, help"
-                />
-                <p className="mt-1 text-sm text-gray-500">
-                  Leave empty to trigger on all {formData.trigger}s
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Configuration */}
-          <div>
-            <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-              <CogIcon className="h-5 w-5 mr-2" />
-              Action Configuration
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Action Type *
-                </label>
-                <select
-                  name="action"
-                  value={formData.action}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  {actionOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Response Message
-                </label>
-                <textarea
-                  name="responseMessage"
-                  value={formData.responseMessage}
-                  onChange={handleInputChange}
-                  rows="3"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter the message to send..."
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Conditions */}
-          <div>
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Conditions</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Minimum Follower Count
-                </label>
-                <input
-                  type="number"
-                  name="conditions.followerCount"
-                  value={formData.conditions.followerCount}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Minimum Account Age (days)
-                </label>
-                <input
-                  type="number"
-                  name="conditions.accountAge"
-                  value={formData.conditions.accountAge}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="0"
-                />
-              </div>
-            </div>
-            <div className="mt-4 space-y-3">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="conditions.hasProfilePic"
-                  checked={formData.conditions.hasProfilePic}
-                  onChange={handleInputChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label className="ml-2 text-sm text-gray-700">
-                  User must have profile picture
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="conditions.isVerified"
-                  checked={formData.conditions.isVerified}
-                  onChange={handleInputChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label className="ml-2 text-sm text-gray-700">
-                  User must be verified
-                </label>
-              </div>
-            </div>
-          </div>
-
-          {/* Schedule */}
-          <div>
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Schedule (Optional)</h2>
-            <div className="space-y-4">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="schedule.enabled"
-                  checked={formData.schedule.enabled}
-                  onChange={handleInputChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label className="ml-2 text-sm text-gray-700">
-                  Enable scheduling
-                </label>
-              </div>
-              {formData.schedule.enabled && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Start Time
-                    </label>
-                    <input
-                      type="time"
-                      name="schedule.startTime"
-                      value={formData.schedule.startTime}
-                      onChange={handleInputChange}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      End Time
-                    </label>
-                    <input
-                      type="time"
-                      name="schedule.endTime"
-                      value={formData.schedule.endTime}
-                      onChange={handleInputChange}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Timezone
-                    </label>
-                    <select
-                      name="schedule.timezone"
-                      value={formData.schedule.timezone}
-                      onChange={handleInputChange}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="UTC">UTC</option>
-                      <option value="America/New_York">Eastern Time</option>
-                      <option value="America/Chicago">Central Time</option>
-                      <option value="America/Denver">Mountain Time</option>
-                      <option value="America/Los_Angeles">Pacific Time</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Form Actions */}
-          <div className="flex justify-end space-x-4 pt-6 border-t">
-            <Link
-              to="/automation"
-              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-            >
-              Cancel
-            </Link>
+          {/* Navigation */}
+          <div className="flex justify-between pt-6 border-t border-gray-200">
             <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              type="button"
+              onClick={prevStep}
+              disabled={currentStep === 1}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <PlusIcon className="h-4 w-4 mr-2" />
-                  Create Automation
-                </>
-              )}
+              Previous
             </button>
+            
+            {currentStep < 4 ? (
+              <button
+                type="button"
+                onClick={nextStep}
+                disabled={!isStepValid(currentStep)}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading || !isStepValid(currentStep)}
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Creating...
+                  </div>
+                ) : (
+                  'Create Automation'
+                )}
+              </button>
+            )}
           </div>
         </form>
+      </div>
+
+      {/* Summary */}
+      <div className="bg-gray-50 rounded-lg p-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Automation Summary</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div className="space-y-2">
+            <p className="text-gray-600">
+              Name: <span className="font-medium text-gray-900">{formData.name || 'Not set'}</span>
+            </p>
+            <p className="text-gray-600">
+              Trigger: <span className="font-medium text-gray-900 capitalize">{formData.triggerType || 'Not set'}</span>
+            </p>
+            <p className="text-gray-600">
+              Action: <span className="font-medium text-gray-900 capitalize">{formData.actionType?.replace('_', ' ') || 'Not set'}</span>
+            </p>
+            <p className="text-gray-600">
+              Status: <span className={`font-medium ${formData.isActive ? 'text-green-600' : 'text-gray-600'}`}>
+                {formData.isActive ? 'Active' : 'Inactive'}
+              </span>
+            </p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-gray-600">
+              Content: <span className="font-medium text-gray-900">
+                {selectedContent ? `Specific post (${selectedContent.instagramId})` : 'All content'}
+              </span>
+            </p>
+            <p className="text-gray-600">
+              Keywords: <span className="font-medium text-gray-900">
+                {formData.keywords ? formData.keywords.split(',').length : 0} keywords
+              </span>
+            </p>
+            <p className="text-gray-600">
+              Rate Limit: <span className="font-medium text-gray-900">
+                {formData.conditions.maxExecutionsPerDay || 10}/day, {formData.cooldownMinutes || 5}min cooldown
+              </span>
+            </p>
+            <p className="text-gray-600">
+              Message: <span className="font-medium text-gray-900">
+                {formData.responseMessage ? `${formData.responseMessage.length} characters` : 'Not set'}
+              </span>
+            </p>
+          </div>
+        </div>
+
+        {/* Advanced Conditions Summary */}
+        {(formData.conditions.timeOfDay?.start || formData.conditions.daysOfWeek?.length > 0) && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Advanced Conditions</h4>
+            <div className="text-xs text-gray-600 space-y-1">
+              {formData.conditions.timeOfDay?.start && formData.conditions.timeOfDay?.end && (
+                <p>• Time window: {formData.conditions.timeOfDay.start} - {formData.conditions.timeOfDay.end}</p>
+              )}
+              {formData.conditions.daysOfWeek?.length > 0 && (
+                <p>• Days: {formData.conditions.daysOfWeek.map(d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]).join(', ')}</p>
+              )}
+              {formData.conditions.requireVerifiedUser && (
+                <p>• Only verified users</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
