@@ -12,9 +12,18 @@ mongoose.connect(MONGODB_URI, {
   .then(() => {
     console.log('Connected to MongoDB');
     startInstagramTokenRefreshJob(); // Start the cron job after DB is connected
-    app.listen(PORT, () => {
+    
+    // Create server with timeout configuration
+    const server = app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
+    
+    // Set server timeout to 60 seconds for slow Instagram API calls
+    server.timeout = 60000; // 60 seconds
+    server.keepAliveTimeout = 65000; // 65 seconds
+    server.headersTimeout = 66000; // 66 seconds
+    
+    console.log('Server timeout configured for Instagram API calls');
   })
   .catch((err) => {
     console.error('MongoDB connection error:', err);

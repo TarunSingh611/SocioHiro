@@ -124,7 +124,7 @@ const ContentList = ({
 
       {/* Content Grid/List */}
       {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
           {contentArray.map((item) => {
             const itemId = item?._id || item?.id;
             if (!itemId) return null;
@@ -159,18 +159,6 @@ const ContentList = ({
         </div>
       )}
 
-      {/* Load More Button */}
-      {contentArray.length > 0 && (
-        <div className="text-center">
-          <button
-            onClick={onCreateNew}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-          >
-            <PlusIcon className="h-4 w-4 mr-2" />
-            Create New Content
-          </button>
-        </div>
-      )}
     </div>
   );
 };

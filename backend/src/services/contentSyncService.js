@@ -10,7 +10,7 @@ class ContentSyncService {
     this.lastSync = new Map(); // Track last sync time per user
   }
 
-  // Sync Instagram content to local database
+  // Sync Instagram content metadata (not the actual content data)
   async syncInstagramContent(userId) {
     try {
       const user = await User.findById(userId);
@@ -19,43 +19,44 @@ class ContentSyncService {
       }
 
       const instagramApi = new InstagramApiService(user.accessToken);
-      // Get Instagram media
+      // Get Instagram media IDs and basic metadata only
       const instagramMedia = await instagramApi.getInstagramMedia(50);
       
-      // Get insights for each media item
-      const mediaWithInsights = await Promise.all(
-        instagramMedia.map(async (media) => {
-          try {
-            const insights = await instagramApi.getMediaInsights(media.id);
-            return { ...media, insights };
-          } catch (error) {
-            console.log(`Failed to get insights for media ${media.id}:`, error.message);
-            return media;
-          }
-        })
-      );
-
-      // Transform and save to local database
-      const savedContent = [];
-      for (const media of mediaWithInsights) {
-        const contentData = this.transformInstagramMediaToContent(media, userId);
-        
-        // Check if content already exists
+      // Store only our app data, not Instagram content
+      const syncedContent = [];
+      for (const media of instagramMedia) {
+        // Check if we already have app data for this Instagram post
         let existingContent = await Content.findOne({ 
           instagramId: media.id,
           userId: userId 
         });
 
-        if (existingContent) {
-          // Update existing content with latest data
-          Object.assign(existingContent, contentData);
-          await existingContent.save();
-          savedContent.push(existingContent);
-        } else {
-          // Create new content
-          const newContent = new Content(contentData);
+        if (!existingContent) {
+          // Create new app data entry for this Instagram post
+          const appData = {
+            userId: userId,
+            instagramId: media.id,
+            source: 'instagram',
+            // Store minimal metadata for reference
+            instagramMediaType: media.media_type,
+            permalink: media.permalink,
+            publishedAt: new Date(media.timestamp),
+            // Initialize our app data
+            campaigns: [],
+            automations: [],
+            watchLists: [],
+            performance: {
+              isHighPerforming: false,
+              isUnderperforming: false,
+              performanceScore: 0,
+              lastAnalyzed: null
+            },
+            status: 'published'
+          };
+
+          const newContent = new Content(appData);
           await newContent.save();
-          savedContent.push(newContent);
+          syncedContent.push(newContent);
         }
       }
 
@@ -64,51 +65,177 @@ class ContentSyncService {
 
       return {
         success: true,
-        syncedCount: savedContent.length,
-        message: `Successfully synced ${savedContent.length} Instagram posts`
+        syncedCount: syncedContent.length,
+        message: `Successfully synced ${syncedContent.length} Instagram posts metadata`
       };
 
     } catch (error) {
-      console.error('Error syncing Instagram content:', error);
       throw error;
     }
   }
 
-  // Transform Instagram media to content format
-  transformInstagramMediaToContent(media, userId) {
-    const hashtags = this.extractHashtags(media.caption || '');
+  // Get combined content (Instagram + our app data)
+  async getCombinedContent(userId, options = {}) {
+    const { limit = 25, source = 'all' } = options;
+    
+    let query = { userId: userId };
+    
+    if (source === 'instagram') {
+      query.source = 'instagram';
+    } else if (source === 'local') {
+      query.source = 'local';
+    }
+
+    // Get our app data
+    const appData = await Content.find(query)
+      .populate('campaigns', 'name description status')
+      .populate('automations', 'name description triggerType isActive')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+
+    // Fetch fresh Instagram data and combine
+    const user = await User.findById(userId);
+    if (!user || !user.accessToken) {
+      throw new Error('User not found or no Instagram access token');
+    }
+
+    const instagramApi = new InstagramApiService(user.accessToken);
+    const combinedContent = [];
+
+    for (const content of appData) {
+      if (content.instagramId) {
+        try {
+          // Fetch fresh Instagram data
+          const instagramData = await this.getInstagramMediaData(instagramApi, content.instagramId);
+          
+          // Combine Instagram data with our app data
+          const combined = this.combineInstagramAndAppData(instagramData, content);
+          combinedContent.push(combined);
+        } catch (error) {
+          // Create minimal combined data with app data only
+          const minimalData = {
+            _id: content._id,
+            userId: content.userId,
+            campaigns: content.campaigns,
+            automations: content.automations,
+            watchLists: content.watchLists,
+            performance: content.performance,
+            status: content.status,
+            createdAt: content.createdAt,
+            updatedAt: content.updatedAt,
+            instagramId: content.instagramId,
+            source: 'instagram',
+            // Provide fallback data
+            title: 'Instagram Post (Data Unavailable)',
+            description: '',
+            type: 'post',
+            content: '',
+            mediaUrls: [],
+            hashtags: [],
+            stats: { likes: 0, comments: 0, reach: 0 },
+            insights: { impressions: 0, reach: 0, likes: 0, comments: 0, saved: 0, videoViews: 0 }
+          };
+          combinedContent.push(minimalData);
+        }
+      } else {
+        // Local content without Instagram ID
+        combinedContent.push(content.toObject());
+      }
+    }
+
+    // Analyze performance for each content item
+    const contentWithAnalysis = combinedContent.map(item => {
+      const analyzedItem = item;
+      
+      // Calculate performance score
+      const performanceScore = this.calculatePerformanceScore(item);
+      analyzedItem.performanceScore = performanceScore;
+      
+      // Determine if high/under performing
+      analyzedItem.performance.isHighPerforming = performanceScore >= 70;
+      analyzedItem.performance.isUnderperforming = performanceScore <= 30;
+      analyzedItem.performance.lastAnalyzed = new Date();
+      
+      return analyzedItem;
+    });
+
+    return {
+      content: contentWithAnalysis,
+      source: source,
+      totalCount: contentWithAnalysis.length
+    };
+  }
+
+  // Fetch Instagram media data (content + insights)
+  async getInstagramMediaData(instagramApi, mediaId) {
+    try {
+      // Get basic media data
+      const mediaData = await instagramApi.getMediaById(mediaId);
+      
+      // Get insights with media type
+      let insights = null;
+      try {
+        insights = await instagramApi.getMediaInsights(mediaId, mediaData.media_type);
+      } catch (error) {
+        // Silently fail - insights are optional
+      }
+
+      return {
+        ...mediaData,
+        insights
+      };
+    } catch (error) {
+      throw new Error(`Failed to get Instagram media data: ${error.message}`);
+    }
+  }
+
+  // Combine Instagram data with our app data
+  combineInstagramAndAppData(instagramData, appData) {
+    const hashtags = this.extractHashtags(instagramData.caption || '');
     
     return {
-      userId: userId,
-      title: media.caption?.substring(0, 100) || 'Instagram Post',
-      description: media.caption || '',
-      type: this.mapInstagramMediaType(media.media_type),
-      content: media.caption || '',
-      mediaUrls: [media.media_url],
+      // Our app data
+      _id: appData._id,
+      userId: appData.userId,
+      campaigns: appData.campaigns,
+      automations: appData.automations,
+      watchLists: appData.watchLists,
+      performance: appData.performance,
+      status: appData.status,
+      createdAt: appData.createdAt,
+      updatedAt: appData.updatedAt,
+      
+      // Instagram data (fresh from API)
+      instagramId: instagramData.id,
+      title: instagramData.caption?.substring(0, 100) || 'Instagram Post',
+      description: instagramData.caption || '',
+      type: this.mapInstagramMediaType(instagramData.media_type),
+      content: instagramData.caption || '',
+      mediaUrls: [instagramData.media_url],
       hashtags: hashtags,
-      location: '',
       isPublished: true,
-      publishedAt: new Date(media.timestamp),
-      instagramId: media.id,
-      permalink: media.permalink,
+      publishedAt: new Date(instagramData.timestamp),
+      permalink: instagramData.permalink,
       source: 'instagram',
-      instagramMediaType: media.media_type,
-      thumbnailUrl: media.thumbnail_url,
+      instagramMediaType: instagramData.media_type,
+      thumbnailUrl: instagramData.thumbnail_url,
+      
+      // Stats from Instagram (only real data)
       stats: {
-        likes: media.like_count || 0,
-        comments: media.comments_count || 0,
-        shares: 0,
-        reach: 0
+        likes: instagramData.like_count || 0,
+        comments: instagramData.comments_count || 0,
+        reach: instagramData.insights?.find(i => i.name === 'reach')?.values?.[0]?.value || 0
       },
+      
+      // Insights from Instagram (only real data)
       insights: {
-        impressions: media.insights?.data?.find(i => i.name === 'impressions')?.values?.[0]?.value || 0,
-        reach: media.insights?.data?.find(i => i.name === 'reach')?.values?.[0]?.value || 0,
-        engagement: media.insights?.data?.find(i => i.name === 'engagement')?.values?.[0]?.value || 0,
-        saved: media.insights?.data?.find(i => i.name === 'saved')?.values?.[0]?.value || 0,
-        videoViews: media.insights?.data?.find(i => i.name === 'video_views')?.values?.[0]?.value || 0,
-        videoViewRate: media.insights?.data?.find(i => i.name === 'video_view_rate')?.values?.[0]?.value || 0
-      },
-      status: 'published'
+        impressions: instagramData.insights?.find(i => i.name === 'impressions')?.values?.[0]?.value || 0,
+        reach: instagramData.insights?.find(i => i.name === 'reach')?.values?.[0]?.value || 0,
+        likes: instagramData.insights?.find(i => i.name === 'likes')?.values?.[0]?.value || instagramData.like_count || 0,
+        comments: instagramData.insights?.find(i => i.name === 'comments')?.values?.[0]?.value || instagramData.comments_count || 0,
+        saved: instagramData.insights?.find(i => i.name === 'saved')?.values?.[0]?.value || 0,
+        videoViews: instagramData.insights?.find(i => i.name === 'video_views')?.values?.[0]?.value || 0
+      }
     };
   }
 
@@ -130,60 +257,18 @@ class ContentSyncService {
     return caption.match(hashtagRegex) || [];
   }
 
-  // Get combined content (Instagram + local)
-  async getCombinedContent(userId, options = {}) {
-    const { limit = 25, source = 'all' } = options;
-    
-    let query = { userId: userId };
-    
-    if (source === 'instagram') {
-      query.source = 'instagram';
-    } else if (source === 'local') {
-      query.source = 'local';
-    }
-
-    const content = await Content.find(query)
-      .populate('campaigns', 'name description status')
-      .populate('automations', 'name description triggerType isActive')
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit));
-
-    // Analyze performance for each content item
-    const contentWithAnalysis = content.map(item => {
-      const analyzedItem = item.toObject();
-      
-      // Calculate performance score
-      const performanceScore = this.calculatePerformanceScore(item);
-      analyzedItem.performanceScore = performanceScore;
-      
-      // Determine if high/under performing
-      analyzedItem.performance.isHighPerforming = performanceScore >= 70;
-      analyzedItem.performance.isUnderperforming = performanceScore <= 30;
-      analyzedItem.performance.lastAnalyzed = new Date();
-      
-      return analyzedItem;
-    });
-
-    return {
-      content: contentWithAnalysis,
-      source: source,
-      totalCount: contentWithAnalysis.length
-    };
-  }
-
   // Calculate performance score for content
   calculatePerformanceScore(content) {
     let score = 0;
-    
     // Engagement rate (40% weight)
-    const engagementRate = content.getEngagementRate();
+    const engagementRate = content.getEngagementRate ? content.getEngagementRate() : 0;
     if (engagementRate > 5) score += 40;
     else if (engagementRate > 3) score += 30;
     else if (engagementRate > 1) score += 20;
     else if (engagementRate > 0.5) score += 10;
     
     // Reach (30% weight)
-    const reach = content.stats.reach || 0;
+    const reach = content.stats?.reach || 0;
     if (reach > 10000) score += 30;
     else if (reach > 5000) score += 25;
     else if (reach > 1000) score += 20;
@@ -191,14 +276,14 @@ class ContentSyncService {
     else if (reach > 100) score += 10;
     
     // Likes (20% weight)
-    const likes = content.stats.likes || 0;
+    const likes = content.stats?.likes || 0;
     if (likes > 1000) score += 20;
     else if (likes > 500) score += 15;
     else if (likes > 100) score += 10;
     else if (likes > 50) score += 5;
     
     // Comments (10% weight)
-    const comments = content.stats.comments || 0;
+    const comments = content.stats?.comments || 0;
     if (comments > 100) score += 10;
     else if (comments > 50) score += 8;
     else if (comments > 20) score += 5;
@@ -352,7 +437,6 @@ class ContentSyncService {
       const result = await this.syncInstagramContent(userId);
       return result;
     } catch (error) {
-      console.error('Manual sync failed:', error);
       throw error;
     }
   }

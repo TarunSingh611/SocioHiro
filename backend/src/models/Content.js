@@ -6,55 +6,8 @@ const contentSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  title: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  description: {
-    type: String,
-    trim: true
-  },
-  type: {
-    type: String,
-    enum: ['post', 'story', 'reel', 'carousel'],
-    default: 'post'
-  },
-  content: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  mediaUrls: [{
-    type: String,
-    required: true
-  }],
-  hashtags: [{
-    type: String,
-    trim: true
-  }],
-  location: {
-    type: String,
-    trim: true
-  },
-  scheduledDate: {
-    type: Date
-  },
-  scheduledTime: {
-    type: String
-  },
-  isPublished: {
-    type: Boolean,
-    default: false
-  },
-  publishedAt: {
-    type: Date
-  },
-  // Instagram-specific fields
+  // Instagram ID to link with Instagram data
   instagramId: {
-    type: String
-  },
-  permalink: {
     type: String
   },
   // Source field to distinguish between Instagram and local content
@@ -63,48 +16,22 @@ const contentSchema = new mongoose.Schema({
     enum: ['instagram', 'local'],
     default: 'local'
   },
-  // Instagram media type
+  // Minimal Instagram metadata for reference
   instagramMediaType: {
     type: String,
-    enum: ['IMAGE', 'VIDEO', 'CAROUSEL_ALBUM', 'STORY'],
-    default: 'IMAGE'
+    enum: ['IMAGE', 'VIDEO', 'CAROUSEL_ALBUM', 'STORY']
   },
-  // Instagram thumbnail URL for videos
-  thumbnailUrl: {
+  permalink: {
     type: String
   },
-  stats: {
-    likes: { type: Number, default: 0 },
-    comments: { type: Number, default: 0 },
-    shares: { type: Number, default: 0 },
-    reach: { type: Number, default: 0 },
-    impressions: { type: Number, default: 0 },
-    engagement: { type: Number, default: 0 },
-    saved: { type: Number, default: 0 }
+  publishedAt: {
+    type: Date
   },
-  status: {
-    type: String,
-    enum: ['draft', 'scheduled', 'published', 'failed'],
-    default: 'draft'
-  },
-  errorMessage: {
-    type: String
-  },
-  // Instagram insights data
-  insights: {
-    impressions: { type: Number, default: 0 },
-    reach: { type: Number, default: 0 },
-    engagement: { type: Number, default: 0 },
-    saved: { type: Number, default: 0 },
-    videoViews: { type: Number, default: 0 },
-    videoViewRate: { type: Number, default: 0 }
-  },
-  // Campaign associations
+  // Our app-specific data
   campaigns: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Campaign'
   }],
-  // Automation associations
   automations: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'AutomationRule'
@@ -120,6 +47,11 @@ const contentSchema = new mongoose.Schema({
     isUnderperforming: { type: Boolean, default: false },
     performanceScore: { type: Number, default: 0 }, // 0-100 score
     lastAnalyzed: { type: Date }
+  },
+  status: {
+    type: String,
+    enum: ['draft', 'scheduled', 'published', 'failed'],
+    default: 'draft'
   }
 }, {
   timestamps: true
@@ -127,45 +59,24 @@ const contentSchema = new mongoose.Schema({
 
 // Index for better query performance
 contentSchema.index({ userId: 1, createdAt: -1 });
-contentSchema.index({ userId: 1, isPublished: 1 });
 contentSchema.index({ userId: 1, status: 1 });
 contentSchema.index({ userId: 1, source: 1 });
-contentSchema.index({ instagramId: 1 });
+contentSchema.index({ instagramId: 1 }, { sparse: true });
 contentSchema.index({ campaigns: 1 });
 contentSchema.index({ automations: 1 });
 contentSchema.index({ 'performance.isHighPerforming': 1 });
 contentSchema.index({ 'performance.isUnderperforming': 1 });
-
-// Virtual for full scheduled datetime
-contentSchema.virtual('scheduledDateTime').get(function() {
-  if (this.scheduledDate && this.scheduledTime) {
-    const [hours, minutes] = this.scheduledTime.split(':');
-    const scheduled = new Date(this.scheduledDate);
-    scheduled.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-    return scheduled;
-  }
-  return null;
-});
-
-// Method to check if content is scheduled
-contentSchema.methods.isScheduled = function() {
-  return this.status === 'scheduled' && this.scheduledDateTime && this.scheduledDateTime > new Date();
-};
-
-// Method to check if content is ready to publish
-contentSchema.methods.isReadyToPublish = function() {
-  return this.status === 'scheduled' && this.scheduledDateTime && this.scheduledDateTime <= new Date();
-};
 
 // Method to check if content is from Instagram
 contentSchema.methods.isFromInstagram = function() {
   return this.source === 'instagram' || this.instagramId;
 };
 
-// Method to get engagement rate
+// Method to get engagement rate (this will be calculated from fresh Instagram data)
 contentSchema.methods.getEngagementRate = function() {
-  if (this.stats.reach > 0) {
-    return ((this.stats.likes + this.stats.comments) / this.stats.reach * 100).toFixed(2);
+  // This method will be called with stats from fresh Instagram data
+  if (this.stats && this.stats.reach > 0) {
+    return parseFloat(((this.stats.likes + this.stats.comments) / this.stats.reach * 100).toFixed(2));
   }
   return 0;
 };
@@ -188,14 +99,6 @@ contentSchema.methods.getAssociationCount = function() {
 
 // Pre-save middleware to update status
 contentSchema.pre('save', function(next) {
-  if (this.isPublished) {
-    this.status = 'published';
-  } else if (this.scheduledDate && this.scheduledTime) {
-    this.status = 'scheduled';
-  } else {
-    this.status = 'draft';
-  }
-  
   // Update source based on Instagram ID
   if (this.instagramId) {
     this.source = 'instagram';

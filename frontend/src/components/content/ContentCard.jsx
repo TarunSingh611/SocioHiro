@@ -12,7 +12,8 @@ import {
   ArrowTrendingDownIcon,
   CalendarIcon,
   MapPinIcon,
-  HashtagIcon
+  HashtagIcon,
+  InformationCircleIcon
 } from '@heroicons/react/24/outline';
 import {
   HeartIcon as HeartSolidIcon,
@@ -23,6 +24,7 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [showAppData, setShowAppData] = useState(false);
 
   const {
     _id,
@@ -43,7 +45,10 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
     location,
     campaigns = [],
     automations = [],
-    watchLists = []
+    watchLists = [],
+    status,
+    source,
+    thumbnailUrl
   } = content;
 
   const isVideo = type === 'reel' || instagramMediaType === 'VIDEO' || 
@@ -64,7 +69,7 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
   const PerformanceIcon = getPerformanceIcon();
 
   const formatNumber = (num) => {
-    if (!num) return '0';
+    if (!num || num === 0) return null;
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
@@ -74,8 +79,37 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
     setImageError(true);
   };
 
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-200">
+  // Get the main content text (prefer title, then description, then content)
+  const mainContent = title || description || contentText || 'No content';
+
+  // Get Instagram stats (only show non-zero values)
+  const instagramStats = {
+    likes: insights.likes || stats.likes,
+    comments: insights.comments || stats.comments,
+    shares: stats.shares,
+    saved: insights.saved,
+    reach: insights.reach || stats.reach,
+    impressions: insights.impressions,
+    videoViews: insights.videoViews
+  };
+
+  // Filter out zero/null values for Instagram stats
+  const displayInstagramStats = Object.fromEntries(
+    Object.entries(instagramStats).filter(([key, value]) => value && value > 0)
+  );
+
+  // App data for flip view
+  const appData = {
+    status,
+    performance: performance?.performanceScore || 0,
+    campaigns: campaigns.length,
+    automations: automations.length,
+    watchLists: watchLists.length,
+    lastAnalyzed: performance?.lastAnalyzed
+  };
+
+  const renderInstagramView = () => (
+    <div className="flex flex-col">
       {/* Media Section */}
       <div className="relative aspect-square bg-gray-50">
         {mediaUrls?.[0] && !imageError ? (
@@ -85,7 +119,7 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
                 <video
                   src={mediaUrls[0]}
                   className="w-full h-full object-cover"
-                  poster={content.thumbnailUrl}
+                  poster={thumbnailUrl}
                   controls
                   onError={handleImageError}
                 />
@@ -97,7 +131,7 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
             ) : (
               <img
                 src={mediaUrls[0]}
-                alt={title || 'Content'}
+                alt={mainContent}
                 className="w-full h-full object-cover"
                 onError={handleImageError}
               />
@@ -105,9 +139,9 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
             
             {/* Performance Badge */}
             {performance && (
-              <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${getPerformanceColor()}`}>
-                <PerformanceIcon className="h-3 w-3 inline mr-1" />
-                {performance.performanceScore || 0}
+              <div className={`absolute top-1 right-8 px-2 py-1 rounded-full text-xs font-medium ${getPerformanceColor()}`}>
+                <PerformanceIcon className="h-3 w-3 inline mr-0.5" />
+                {performance?.performanceScore}
               </div>
             )}
 
@@ -115,6 +149,13 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
             {mediaUrls.length > 1 && (
               <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
                 {mediaUrls.length} photos
+              </div>
+            )}
+
+            {/* Source Badge */}
+            {source && (
+              <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
+                {source}
               </div>
             )}
           </div>
@@ -131,50 +172,74 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-1">
-              {title || 'Untitled Content'}
+              {mainContent}
             </h3>
-            <p className="text-xs text-gray-600 line-clamp-2">
-              {description || contentText || 'No description'}
-            </p>
+            {description && description !== title && (
+              <p className="text-xs text-gray-600 line-clamp-2">
+                {description}
+              </p>
+            )}
           </div>
           
           {/* Status Badge */}
           <div className="ml-2 flex-shrink-0">
             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-              isPublished ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+              isPublished || status === 'published' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
             }`}>
-              {isPublished ? 'Published' : 'Draft'}
+              {isPublished || status === 'published' ? 'Published' : 'Draft'}
             </span>
           </div>
         </div>
 
-        {/* Engagement Stats */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-1">
-              <HeartIcon className="h-4 w-4 text-gray-400" />
-              <span className="text-xs text-gray-600">{formatNumber(stats.likes)}</span>
+        {/* Engagement Stats - Only show non-zero values */}
+        {Object.keys(displayInstagramStats).length > 0 && (
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-4">
+              {displayInstagramStats.likes && (
+                <div className="flex items-center space-x-1">
+                  <HeartIcon className="h-4 w-4 text-gray-400" />
+                  <span className="text-xs text-gray-600">{formatNumber(displayInstagramStats.likes)}</span>
+                </div>
+              )}
+              {displayInstagramStats.comments && (
+                <div className="flex items-center space-x-1">
+                  <ChatBubbleLeftIcon className="h-4 w-4 text-gray-400" />
+                  <span className="text-xs text-gray-600">{formatNumber(displayInstagramStats.comments)}</span>
+                </div>
+              )}
+              {displayInstagramStats.shares && (
+                <div className="flex items-center space-x-1">
+                  <ShareIcon className="h-4 w-4 text-gray-400" />
+                  <span className="text-xs text-gray-600">{formatNumber(displayInstagramStats.shares)}</span>
+                </div>
+              )}
+              {displayInstagramStats.saved && (
+                <div className="flex items-center space-x-1">
+                  <BookmarkIcon className="h-4 w-4 text-gray-400" />
+                  <span className="text-xs text-gray-600">{formatNumber(displayInstagramStats.saved)}</span>
+                </div>
+              )}
+              {displayInstagramStats.reach && (
+                <div className="flex items-center space-x-1">
+                  <EyeIcon className="h-4 w-4 text-gray-400" />
+                  <span className="text-xs text-gray-600">{formatNumber(displayInstagramStats.reach)}</span>
+                </div>
+              )}
+              {displayInstagramStats.impressions && (
+                <div className="flex items-center space-x-1">
+                  <ChartBarIcon className="h-4 w-4 text-gray-400" />
+                  <span className="text-xs text-gray-600">{formatNumber(displayInstagramStats.impressions)}</span>
+                </div>
+              )}
+              {displayInstagramStats.videoViews && (
+                <div className="flex items-center space-x-1">
+                  <PlayIcon className="h-4 w-4 text-gray-400" />
+                  <span className="text-xs text-gray-600">{formatNumber(displayInstagramStats.videoViews)}</span>
+                </div>
+              )}
             </div>
-            <div className="flex items-center space-x-1">
-              <ChatBubbleLeftIcon className="h-4 w-4 text-gray-400" />
-              <span className="text-xs text-gray-600">{formatNumber(stats.comments)}</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <ShareIcon className="h-4 w-4 text-gray-400" />
-              <span className="text-xs text-gray-600">{formatNumber(stats.shares)}</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <BookmarkIcon className="h-4 w-4 text-gray-400" />
-              <span className="text-xs text-gray-600">{formatNumber(stats.saved)}</span>
-            </div>
-            {insights.reach > 0 && (
-              <div className="flex items-center space-x-1">
-                <EyeIcon className="h-4 w-4 text-gray-400" />
-                <span className="text-xs text-gray-600">{formatNumber(insights.reach)}</span>
-              </div>
-            )}
           </div>
-        </div>
+        )}
 
         {/* Hashtags */}
         {hashtags.length > 0 && (
@@ -191,25 +256,6 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
           </div>
         )}
 
-        {/* Associations */}
-        <div className="flex flex-wrap gap-2 mb-3">
-          {campaigns.length > 0 && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700">
-              {campaigns.length} Campaign{campaigns.length > 1 ? 's' : ''}
-            </span>
-          )}
-          {automations.length > 0 && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-50 text-green-700">
-              {automations.length} Automation{automations.length > 1 ? 's' : ''}
-            </span>
-          )}
-          {watchLists.length > 0 && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-50 text-purple-700">
-              {watchLists.length} Watch List{watchLists.length > 1 ? 's' : ''}
-            </span>
-          )}
-        </div>
-
         {/* Meta Information */}
         <div className="flex items-center justify-between text-xs text-gray-500">
           <div className="flex items-center space-x-3">
@@ -224,9 +270,6 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
                 <MapPinIcon className="h-3 w-3" />
                 <span>{location}</span>
               </div>
-            )}
-            {instagramId && (
-              <span>ID: {instagramId}</span>
             )}
           </div>
           
@@ -254,17 +297,17 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
               ) : (
                 <HeartIcon className="h-5 w-5" />
               )}
-              <span className="text-xs">{formatNumber(stats.likes)}</span>
+              <span className="text-xs">{formatNumber(displayInstagramStats.likes) || '0'}</span>
             </button>
             
             <button className="flex items-center space-x-1 text-gray-500 hover:text-blue-500 transition-colors">
               <ChatBubbleLeftIcon className="h-5 w-5" />
-              <span className="text-xs">{formatNumber(stats.comments)}</span>
+              <span className="text-xs">{formatNumber(displayInstagramStats.comments) || '0'}</span>
             </button>
             
             <button className="flex items-center space-x-1 text-gray-500 hover:text-green-500 transition-colors">
               <ShareIcon className="h-5 w-5" />
-              <span className="text-xs">{formatNumber(stats.shares)}</span>
+              <span className="text-xs">{formatNumber(displayInstagramStats.shares) || '0'}</span>
             </button>
           </div>
           
@@ -292,6 +335,168 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+
+  const renderAppDataView = () => {
+    return (
+      <div className="flex flex-col">
+        
+        {/* Content section - exactly matching Instagram view structure */}
+        <div className="p-4">
+          {/* Status */}
+          <div className="bg-gray-50 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Status</span>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                status === 'published' ? 'bg-green-100 text-green-800' : 
+                status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                'bg-red-100 text-red-800'
+              }`}>
+                {status}
+              </span>
+            </div>
+          </div>
+
+
+          {/* Campaigns */}
+          <div className="bg-gray-50 rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">Campaigns</span>
+              <button 
+                className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                onClick={() => {/* TODO: Add campaign management */}}
+              >
+                Manage
+              </button>
+            </div>
+            {campaigns.length > 0 ? (
+              <div className="space-y-1">
+                {campaigns.map((campaign, index) => (
+                  <div key={index} className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600">{campaign.name || `Campaign ${index + 1}`}</span>
+                    <span className="text-blue-600 font-medium">Active</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-xs text-gray-500">No campaigns assigned</div>
+            )}
+          </div>
+
+          {/* Automations */}
+          <div className="bg-gray-50 rounded-lg p-3 mb-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">Automations</span>
+              <button 
+                className="text-green-600 hover:text-green-800 text-xs font-medium"
+                onClick={() => {/* TODO: Add automation management */}}
+              >
+                Manage
+              </button>
+            </div>
+            {automations.length > 0 ? (
+              <div className="space-y-1">
+                {automations.map((automation, index) => (
+                  <div key={index} className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600">{automation.name || `Automation ${index + 1}`}</span>
+                    <span className="text-green-600 font-medium">Active</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-xs text-gray-500">No automations assigned</div>
+            )}
+          </div>
+
+          {/* Watch Lists */}
+          <div className="bg-gray-50 rounded-lg p-3 mb-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">Watch Lists</span>
+              <button 
+                className="text-purple-600 hover:text-purple-800 text-xs font-medium"
+                onClick={() => {/* TODO: Add watch list management */}}
+              >
+                Manage
+              </button>
+            </div>
+            {watchLists.length > 0 ? (
+              <div className="space-y-1">
+                {watchLists.map((watchList, index) => (
+                  <div key={index} className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600">{watchList.name || `Watch List ${index + 1}`}</span>
+                    <span className="text-purple-600 font-medium">Monitoring</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-xs text-gray-500">No watch lists assigned</div>
+            )}
+          </div>
+
+          {/* Last Analyzed */}
+          {appData.lastAnalyzed && (
+            <div className="bg-gray-50 rounded-lg p-3 mb-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Last Analyzed</span>
+                <span className="text-xs text-gray-500">
+                  {new Date(appData.lastAnalyzed).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+          )}
+
+
+
+          {/* Quick Actions */}
+          <div className="bg-gray-50 rounded-lg p-3">
+            <div className="grid grid-cols-2 gap-2">
+              <button 
+                className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
+                onClick={() => {/* TODO: Add to campaign */}}
+              >
+                Add to Campaign
+              </button>
+              <button 
+                className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200"
+                onClick={() => {/* TODO: Create automation */}}
+              >
+                Create Automation
+              </button>
+              <button 
+                className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded hover:bg-purple-200"
+                onClick={() => {/* TODO: Add to watch list */}}
+              >
+                Add to Watch List
+              </button>
+              <button 
+                className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded hover:bg-orange-200"
+                onClick={() => onEdit && onEdit(content)}
+              >
+                Edit Content
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-200 relative">
+      {/* Flip Button */}
+      <button
+        onClick={() => setShowAppData(!showAppData)}
+        className="absolute top-1 right-1 z-10 bg-white bg-opacity-90 rounded-full p-1 shadow-sm hover:bg-opacity-100 transition-all"
+        title="Toggle App Data"
+      >
+        <InformationCircleIcon className="h-4 w-4 text-gray-600" />
+      </button>
+
+      <div className="transition-all duration-300 ease-in-out">
+        {showAppData ? renderAppDataView() : renderInstagramView()}
       </div>
     </div>
   );

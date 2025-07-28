@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
-  timeout: 10000,
+  timeout: 30000, // Increased from 10000 to 30000 (30 seconds)
   headers: {
     'Content-Type': 'application/json',
   },
@@ -28,6 +28,13 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Handle timeout errors specifically
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      const timeoutError = new Error('Request timeout - Instagram API is taking longer than expected. Please try again.');
+      timeoutError.isTimeout = true;
+      return Promise.reject(timeoutError);
+    }
+    
     if (error.response?.status === 401) {
       // Unauthorized - redirect to login
       localStorage.removeItem('token');

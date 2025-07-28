@@ -97,7 +97,7 @@ const upload = multer({
 // Get content - prioritize Instagram content, fallback to local database
 router.get('/', requireAuth, async (req, res) => {
   try {
-    console.log('📥 GET /api/content - Request received');
+    
     const { source = 'all', limit = 25, sync = 'auto' } = req.query;
     
     // User object should come from JWT token via requireAuth middleware
@@ -106,7 +106,7 @@ router.get('/', requireAuth, async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    console.log('👤 User authenticated:', { userId: req.user._id, username: req.user.username });
+
     
     debug.log('GET /content', { source, limit, sync, userId: req.user._id });
 
@@ -128,7 +128,7 @@ router.get('/', requireAuth, async (req, res) => {
     });
 
     debug.log('Content fetched successfully', { count: result.content?.length || 0 });
-    console.log('✅ GET /api/content - Request completed successfully');
+
 
     res.json({
       ...result,
@@ -241,7 +241,7 @@ router.get('/:id', async (req, res) => {
         return res.status(404).json({ error: 'Content not found' });
       }
     } catch (instagramError) {
-      console.log('Instagram fetch failed:', instagramError.message);
+      
     }
 
     res.status(404).json({ error: 'Content not found' });

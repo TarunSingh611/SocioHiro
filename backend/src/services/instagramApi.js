@@ -4,6 +4,14 @@ class InstagramApiService {
   constructor(accessToken) {
     this.accessToken = accessToken;
     this.baseUrl = 'https://graph.instagram.com';
+    
+    // Configure axios with longer timeout for Instagram API
+    this.axiosInstance = axios.create({
+      timeout: 45000, // 45 seconds timeout
+      headers: {
+        'User-Agent': 'InstagramStore/1.0'
+      }
+    });
   }
 
   // Test token validity and get basic user info
@@ -15,21 +23,36 @@ class InstagramApiService {
         fields: 'id,username,account_type'
       };
       
-      console.log('Testing Instagram token:', { url, params: { ...params, access_token: '***' } });
-      
-      const response = await axios.get(url, { params });
-      console.log('Token test successful:', response.data);
+      const response = await this.axiosInstance.get(url, { params });
       return response.data;
     } catch (error) {
-      console.error('Token test failed:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        errorMessage: error.response?.data?.error?.message,
-        errorType: error.response?.data?.error?.type,
-        errorCode: error.response?.data?.error?.code,
-        fullError: error.response?.data
-      });
       throw new Error(`Token test failed: ${error.response?.data?.error?.message || error.message}`);
+    }
+  }
+
+  // Check if token is valid and not expired
+  async isTokenValid() {
+    try {
+      await this.testToken();
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // Get token expiration info
+  async getTokenInfo() {
+    try {
+      const url = `${this.baseUrl}/debug_token`;
+      const params = {
+        input_token: this.accessToken,
+        access_token: this.accessToken
+      };
+      
+      const response = await this.axiosInstance.get(url, { params });
+      return response.data.data;
+    } catch (error) {
+      throw new Error(`Failed to get token info: ${error.response?.data?.error?.message || error.message}`);
     }
   }
 
@@ -41,18 +64,9 @@ class InstagramApiService {
         access_token: this.accessToken,
         fields: 'user_id,username'
       };
-      console.log('Instagram API Request:', { url, params: { ...params, access_token: '***' } });
-      const response = await axios.get(url, { params });
+      const response = await this.axiosInstance.get(url, { params });
       return response.data; // { user_id, username }
     } catch (error) {
-      console.error('Instagram API Error Details:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        errorMessage: error.response?.data?.error?.message,
-        errorType: error.response?.data?.error?.type,
-        errorCode: error.response?.data?.error?.code,
-        fullError: error.response?.data
-      });
       throw new Error(`Failed to get Instagram user info: ${error.response?.data?.error?.message || error.message}`);
     }
   }
@@ -64,18 +78,9 @@ class InstagramApiService {
       const params = {
         access_token: this.accessToken
       };
-      console.log('Instagram API Request:', { url, params: { ...params, access_token: '***' } });
-      const response = await axios.get(url, { params });
+      const response = await this.axiosInstance.get(url, { params });
       return response.data.data; // array of media objects
     } catch (error) {
-      console.error('Instagram API Error Details:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        errorMessage: error.response?.data?.error?.message,
-        errorType: error.response?.data?.error?.type,
-        errorCode: error.response?.data?.error?.code,
-        fullError: error.response?.data
-      });
       throw new Error(`Failed to get Instagram media: ${error.response?.data?.error?.message || error.message}`);
     }
   }
@@ -90,47 +95,84 @@ class InstagramApiService {
         limit: limit
       };
       
-      console.log('Instagram API Request:', { url, params: { ...params, access_token: '***' } });
-      
-      const response = await axios.get(url, { params });
+      const response = await this.axiosInstance.get(url, { params });
       return response.data.data;
     } catch (error) {
-      console.error('Instagram API Error Details:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        errorMessage: error.response?.data?.error?.message,
-        errorType: error.response?.data?.error?.type,
-        errorCode: error.response?.data?.error?.code,
-        fullError: error.response?.data
-      });
       throw new Error(`Failed to get Instagram media: ${error.response?.data?.error?.message || error.message}`);
     }
   }
 
   // Get media insights (for a single media item)
-  async getMediaInsights(mediaId, metrics = 'impressions,reach,engagement,saved') {
+  async getMediaInsights(mediaId, mediaType = null) {
     try {
+      // Define metrics based on media type
+      let metrics;
+      if (mediaType === 'VIDEO' || mediaType === 'REELS') {
+        metrics = 'reach,likes,comments,saved,video_views';
+      } else if (mediaType === 'STORY') {
+        metrics = 'reach,exits,replies';
+      } else {
+        // For IMAGE and CAROUSEL_ALBUM, try without impressions first
+        metrics = 'reach,likes,comments,saved';
+      }
+      
       const url = `${this.baseUrl}/${mediaId}/insights`;
       const params = {
         access_token: this.accessToken,
         metric: metrics
       };
       
-      console.log('Instagram API Request:', { url, params: { ...params, access_token: '***' } });
-      
-      const response = await axios.get(url, { params });
+      const response = await this.axiosInstance.get(url, { params });
       return response.data.data;
     } catch (error) {
-      console.error('Instagram API Error Details:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        errorMessage: error.response?.data?.error?.message,
-        errorType: error.response?.data?.error?.type,
-        errorCode: error.response?.data?.error?.code,
-        fullError: error.response?.data
-      });
+      // If the first attempt fails, try with minimal metrics
+      if (error.response?.data?.error?.message?.includes('impressions') || 
+          error.response?.data?.error?.message?.includes('not support')) {
+        try {
+          const url = `${this.baseUrl}/${mediaId}/insights`;
+          const params = {
+            access_token: this.accessToken,
+            metric: 'likes,comments'
+          };
+          
+          const response = await this.axiosInstance.get(url, { params });
+          return response.data.data;
+        } catch (retryError) {
+          throw new Error(`Failed to get media insights (retry): ${retryError.response?.data?.error?.message || retryError.message}`);
+        }
+      }
+      
       throw new Error(`Failed to get media insights: ${error.response?.data?.error?.message || error.message}`);
     }
+  }
+
+  // Get media by ID
+  async getMediaById(mediaId) {
+    try {
+      const url = `${this.baseUrl}/${mediaId}`;
+      const params = {
+        access_token: this.accessToken,
+        fields: 'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count'
+      };
+      
+      const response = await this.axiosInstance.get(url, { params });
+      return response.data;
+    } catch (error) {
+      throw new Error(`Failed to get media by ID: ${error.response?.data?.error?.message || error.message}`);
+    }
+  }
+
+  // Get available metrics for media type
+  getAvailableMetrics(mediaType) {
+    const metricsMap = {
+      'IMAGE': ['reach', 'likes', 'comments', 'saved'],
+      'VIDEO': ['reach', 'likes', 'comments', 'saved', 'video_views'],
+      'CAROUSEL_ALBUM': ['reach', 'likes', 'comments', 'saved'],
+      'STORY': ['reach', 'exits', 'replies'],
+      'REELS': ['reach', 'likes', 'comments', 'saved', 'video_views']
+    };
+    
+    return metricsMap[mediaType] || ['likes', 'comments'];
   }
 
   // Get comments for a post
@@ -142,19 +184,9 @@ class InstagramApiService {
         fields: 'id,text,from,timestamp'
       };
       
-      console.log('Instagram API Request:', { url, params: { ...params, access_token: '***' } });
-      
-      const response = await axios.get(url, { params });
+      const response = await this.axiosInstance.get(url, { params });
       return response.data.data;
     } catch (error) {
-      console.error('Instagram API Error Details:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        errorMessage: error.response?.data?.error?.message,
-        errorType: error.response?.data?.error?.type,
-        errorCode: error.response?.data?.error?.code,
-        fullError: error.response?.data
-      });
       throw new Error(`Failed to get comments: ${error.response?.data?.error?.message || error.message}`);
     }
   }
@@ -168,19 +200,9 @@ class InstagramApiService {
         message: replyText
       };
       
-      console.log('Instagram API Request:', { url, data: { ...data, access_token: '***' } });
-      
-      const response = await axios.post(url, data);
+      const response = await this.axiosInstance.post(url, data);
       return response.data;
     } catch (error) {
-      console.error('Instagram API Error Details:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        errorMessage: error.response?.data?.error?.message,
-        errorType: error.response?.data?.error?.type,
-        errorCode: error.response?.data?.error?.code,
-        fullError: error.response?.data
-      });
       throw new Error(`Failed to reply to comment: ${error.response?.data?.error?.message || error.message}`);
     }
   }
@@ -201,7 +223,7 @@ class InstagramApiService {
       console.log('Instagram API Request:', { url, data: { ...data, access_token: '***' } });
       
       // Create media container
-      const mediaResponse = await axios.post(url, data);
+      const mediaResponse = await this.axiosInstance.post(url, data);
       const creationId = mediaResponse.data.id;
       
       // Publish the media
@@ -213,7 +235,7 @@ class InstagramApiService {
       
       console.log('Instagram API Request:', { url: publishUrl, data: { ...publishData, access_token: '***' } });
       
-      const publishResponse = await axios.post(publishUrl, publishData);
+      const publishResponse = await this.axiosInstance.post(publishUrl, publishData);
       return publishResponse.data;
     } catch (error) {
       console.error('Instagram API Error Details:', {
@@ -244,7 +266,7 @@ class InstagramApiService {
       console.log('Instagram API Request:', { url, data: { ...data, access_token: '***' } });
       
       // Create carousel container
-      const carouselResponse = await axios.post(url, data);
+      const carouselResponse = await this.axiosInstance.post(url, data);
       const creationId = carouselResponse.data.id;
       
       // Publish the carousel
@@ -256,7 +278,7 @@ class InstagramApiService {
       
       console.log('Instagram API Request:', { url: publishUrl, data: { ...publishData, access_token: '***' } });
       
-      const publishResponse = await axios.post(publishUrl, publishData);
+      const publishResponse = await this.axiosInstance.post(publishUrl, publishData);
       return publishResponse.data;
     } catch (error) {
       console.error('Instagram API Error Details:', {
@@ -287,7 +309,7 @@ class InstagramApiService {
       console.log('Instagram API Request:', { url, data: { ...data, access_token: '***' } });
       
       // Create story container
-      const storyResponse = await axios.post(url, data);
+      const storyResponse = await this.axiosInstance.post(url, data);
       const creationId = storyResponse.data.id;
       
       // Publish the story
@@ -299,7 +321,7 @@ class InstagramApiService {
       
       console.log('Instagram API Request:', { url: publishUrl, data: { ...publishData, access_token: '***' } });
       
-      const publishResponse = await axios.post(publishUrl, publishData);
+      const publishResponse = await this.axiosInstance.post(publishUrl, publishData);
       return publishResponse.data;
     } catch (error) {
       console.error('Instagram API Error Details:', {
@@ -325,7 +347,7 @@ class InstagramApiService {
       
       console.log('Instagram API Request:', { url, params: { ...params, access_token: '***' } });
       
-      const response = await axios.get(url, { params });
+      const response = await this.axiosInstance.get(url, { params });
       return response.data.data;
     } catch (error) {
       console.error('Instagram API Error Details:', {

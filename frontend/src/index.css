@@ -407,6 +407,43 @@ textarea:focus {
   margin-bottom: 1rem;
 }
 
+/* Animated Loading Bar Styles */
+@keyframes loadingPulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes loadingShimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.loading-bar-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  background-size: 200px 100%;
+  animation: loadingShimmer 2s infinite;
+}
+
+.loading-stage-complete {
+  animation: loadingPulse 0.5s ease-out;
+}
+
 /* Mobile-friendly success states */
 .mobile-success {
   display: flex;

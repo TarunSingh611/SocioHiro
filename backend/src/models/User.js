@@ -13,6 +13,11 @@ const userSchema = new mongoose.Schema({
   accountType: String, // 'instagram', 'facebook', etc.
   instagramAccounts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'InstagramAccount' }],
   
+  // Instagram token management
+  tokenExpiresIn: Number, // Token expiration time in seconds
+  lastTokenRefresh: Date, // When the token was last refreshed
+  tokenExpiresAt: Date, // Calculated expiration date
+  
   // Session management
   isActive: { type: Boolean, default: true },
   lastLoginAt: { type: Date, default: Date.now },
@@ -55,5 +60,30 @@ const userSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
+
+// Pre-save middleware to calculate token expiration date
+userSchema.pre('save', function(next) {
+  if (this.tokenExpiresIn && this.lastTokenRefresh) {
+    // Calculate when the token will expire
+    this.tokenExpiresAt = new Date(this.lastTokenRefresh.getTime() + (this.tokenExpiresIn * 1000));
+  }
+  this.updatedAt = new Date();
+  next();
+});
+
+// Method to check if token is expired or will expire soon
+userSchema.methods.isTokenExpired = function() {
+  if (!this.tokenExpiresAt) return true;
+  // Consider token expired if it expires within the next 24 hours
+  const oneDayFromNow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  return this.tokenExpiresAt <= oneDayFromNow;
+};
+
+// Method to check if token needs refresh (expires within 7 days)
+userSchema.methods.needsTokenRefresh = function() {
+  if (!this.tokenExpiresAt) return true;
+  const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  return this.tokenExpiresAt <= sevenDaysFromNow;
+};
 
 module.exports = mongoose.model('User', userSchema); 

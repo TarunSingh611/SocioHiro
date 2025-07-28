@@ -8,10 +8,20 @@ import {
   UserGroupIcon,
   ArrowUpIcon,
   ArrowDownIcon,
-  ArrowLeftIcon
+  ArrowLeftIcon,
+  HeartIcon,
+  EyeIcon,
+  ChatBubbleLeftIcon,
+  ShareIcon,
+  PlayIcon,
+  PhotoIcon
 } from '@heroicons/react/24/outline';
+import useContentStore from '../store/contentStore';
 
 const Analytics = () => {
+  const { getAnalyticsStats } = useContentStore();
+  const contentStats = getAnalyticsStats();
+  
   const [analytics, setAnalytics] = useState({
     summary: {},
     orders: {},
@@ -117,6 +127,103 @@ const Analytics = () => {
             <ArrowLeftIcon className="h-3 w-4 sm:h-4 sm:w-4 mr-2" />
             Back to Dashboard
           </Link>
+        </div>
+      </div>
+
+      {/* Content Analytics Section */}
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">Content Analytics</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          {getMetricCard(
+            'Total Likes',
+            (contentStats?.totalLikes || 0).toLocaleString(),
+            null,
+            HeartIcon,
+            'bg-pink-500'
+          )}
+          {getMetricCard(
+            'Total Comments',
+            (contentStats?.totalComments || 0).toLocaleString(),
+            null,
+            ChatBubbleLeftIcon,
+            'bg-purple-500'
+          )}
+          {getMetricCard(
+            'Total Shares',
+            (contentStats?.totalShares || 0).toLocaleString(),
+            null,
+            ShareIcon,
+            'bg-green-500'
+          )}
+          {getMetricCard(
+            'Total Reach',
+            (contentStats?.totalReach || 0).toLocaleString(),
+            null,
+            EyeIcon,
+            'bg-indigo-500'
+          )}
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mt-4 sm:mt-6">
+          {getMetricCard(
+            'Total Impressions',
+            (contentStats?.totalImpressions || 0).toLocaleString(),
+            null,
+            EyeIcon,
+            'bg-cyan-500'
+          )}
+          {getMetricCard(
+            'Total Saved',
+            (contentStats?.totalSaved || 0).toLocaleString(),
+            null,
+            HeartIcon,
+            'bg-red-500'
+          )}
+          {getMetricCard(
+            'Avg Engagement',
+            `${(contentStats?.avgEngagementRate || 0).toFixed(1)}%`,
+            null,
+            ChartBarIcon,
+            'bg-emerald-500'
+          )}
+          {getMetricCard(
+            'Posts',
+            contentStats?.posts || 0,
+            null,
+            PhotoIcon,
+            'bg-blue-500'
+          )}
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mt-4 sm:mt-6">
+          {getMetricCard(
+            'Reels',
+            contentStats?.reels || 0,
+            null,
+            PlayIcon,
+            'bg-orange-500'
+          )}
+          {getMetricCard(
+            'Stories',
+            contentStats?.stories || 0,
+            null,
+            PhotoIcon,
+            'bg-purple-500'
+          )}
+          {getMetricCard(
+            'High Performing',
+            contentStats?.highPerforming || 0,
+            null,
+            ChartBarIcon,
+            'bg-green-500'
+          )}
+          {getMetricCard(
+            'Underperforming',
+            contentStats?.underperforming || 0,
+            null,
+            ChartBarIcon,
+            'bg-red-500'
+          )}
         </div>
       </div>
 

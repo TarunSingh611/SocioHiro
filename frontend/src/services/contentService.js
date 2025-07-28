@@ -1,11 +1,19 @@
 import api from '../api';
 
 class ContentService {
-  async fetchContent() {
+  async fetchContent(retryCount = 0) {
     try {
       const response = await api.get('/content');
       return response.data;
     } catch (error) {
+      // Retry logic for timeout and network errors
+      if ((error.isTimeout || !error.response) && retryCount < 2) {
+        console.log(`Retrying fetchContent (attempt ${retryCount + 1})`);
+        // Wait 2 seconds before retrying
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return this.fetchContent(retryCount + 1);
+      }
+      
       console.error('Error fetching content:', error);
       throw error;
     }

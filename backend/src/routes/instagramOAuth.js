@@ -46,17 +46,33 @@ router.get('/login', (req, res) => {
   
       const { access_token, user_id } = tokenResponse.data;
 
-      // Get user information
+      // Exchange short-lived token for long-lived token
+      console.log('🔄 Exchanging short-lived token for long-lived token...');
+      
+      const longLivedTokenResponse = await axios.get('https://graph.instagram.com/access_token', {
+        params: {
+          grant_type: 'ig_exchange_token',
+          client_secret: process.env.INSTAGRAM_APP_SECRET,
+          access_token: access_token
+        }
+      });
+
+      const longLivedToken = longLivedTokenResponse.data.access_token;
+      const expiresIn = longLivedTokenResponse.data.expires_in;
+      
+      console.log(`✅ Long-lived token obtained, expires in ${expiresIn} seconds (${Math.round(expiresIn / 86400)} days)`);
+
+      // Get user information with long-lived token
       const userResponse = await axios.get(`https://graph.instagram.com/me`, {
         params: {
           fields: 'id,username,account_type',
-          access_token: access_token
+          access_token: longLivedToken
         }
       });
   
       const userInfo = userResponse.data;
   
-      // Store user data in database
+      // Store user data in database with long-lived token
       
       let user = await User.findOne({ instagramId: userInfo.id });
       
@@ -66,14 +82,18 @@ router.get('/login', (req, res) => {
           instagramId: userInfo.id,
           username: userInfo.username,
           accountType: userInfo.account_type,
-          accessToken: access_token,
-          profilePic: null // Instagram doesn't provide profile pic in this API
+          accessToken: longLivedToken, // Store the long-lived token
+          profilePic: null, // Instagram doesn't provide profile pic in this API
+          tokenExpiresIn: expiresIn, // Use actual expiration from API
+          lastTokenRefresh: new Date()
         });
       } else {
         // Update existing user's tokens
-        user.accessToken = access_token;
+        user.accessToken = longLivedToken; // Store the long-lived token
         user.username = userInfo.username;
         user.accountType = userInfo.account_type;
+        user.tokenExpiresIn = expiresIn; // Use actual expiration from API
+        user.lastTokenRefresh = new Date();
         user.updatedAt = new Date();
       }
       
@@ -91,7 +111,7 @@ router.get('/login', (req, res) => {
       const userData = encodeURIComponent(JSON.stringify({
         success: true,
         user: userInfo,
-        accessToken: access_token,
+        accessToken: longLivedToken, // Send long-lived token to frontend
         jwtToken: jwtToken,
         message: 'Successfully authenticated with Instagram'
       }));

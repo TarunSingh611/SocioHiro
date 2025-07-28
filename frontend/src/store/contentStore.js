@@ -20,13 +20,13 @@ const useContentStore = create((set, get) => ({
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   clearError: () => set({ error: null }),
-
-  fetchContent: async () => {
+  fetchContent: async (retryCount = 0) => {
     try {
       set({ loading: true, error: null });
       
       // Fetch real content from database
       const contentData = await contentService.fetchContent();
+      console.log('Content data:', contentData);
       // Handle the API response structure
       set({ 
         content: contentData?.content || [], 
@@ -35,8 +35,32 @@ const useContentStore = create((set, get) => ({
         loading: false 
       });
     } catch (err) {
+      // Handle specific error types for better UX
+      let errorMessage = err.message;
+      
+      if (err.isTimeout) {
+        errorMessage = 'Request timeout - Instagram API is taking longer than expected. Please try again.';
+      } else if (err.response?.status === 401) {
+        errorMessage = 'Authentication required - Please reconnect your Instagram account.';
+      } else if (err.response?.status === 403) {
+        errorMessage = 'Access denied - Your Instagram permissions may have expired.';
+      } else if (err.response?.status === 429) {
+        errorMessage = 'Rate limit exceeded - Instagram API is temporarily unavailable. Please try again later.';
+      } else if (err.response?.status >= 500) {
+        errorMessage = 'Server error - Please try again in a few minutes.';
+      } else if (!err.response) {
+        errorMessage = 'Network error - Please check your connection and try again.';
+      }
+      
+      // Auto-retry for certain errors
+      if ((err.isTimeout || !err.response || err.response?.status >= 500) && retryCount < 2) {
+        // Wait 3 seconds before retrying
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        return get().fetchContent(retryCount + 1);
+      }
+      
       set({ 
-        error: err.message, 
+        error: errorMessage, 
         loading: false 
       });
       console.error('Error fetching content:', err);
@@ -345,6 +369,67 @@ const useContentStore = create((set, get) => ({
     const { content } = get();
     return content.filter(item => item.hasAssociations?.() || 
       (item.campaigns?.length > 0 || item.automations?.length > 0 || item.watchLists?.length > 0));
+  },
+
+  // Content stats calculations
+  getContentStats: () => {
+    const { content } = get();
+  
+    // Basic content status stats
+    const totalContent = content?.length || 0;
+    const published = content?.filter(item => item?.status === 'published')?.length || 0;
+    const scheduled = content?.filter(item => item?.status === 'scheduled')?.length || 0;
+    const drafts = content?.filter(item => item?.status === 'draft')?.length || 0;
+    
+    const stats = {
+      totalContent,
+      published,
+      scheduled,
+      drafts
+    };
+    
+    return stats;
+  },
+
+  // Analytics stats calculations
+  getAnalyticsStats: () => {
+    const { content } = get();
+    
+    // Calculate engagement metrics
+    const totalLikes = content?.reduce((sum, item) => sum + (item?.stats?.likes || 0), 0) || 0;
+    const totalComments = content?.reduce((sum, item) => sum + (item?.stats?.comments || 0), 0) || 0;
+    const totalShares = content?.reduce((sum, item) => sum + (item?.stats?.shares || 0), 0) || 0;
+    const totalReach = content?.reduce((sum, item) => sum + (item?.stats?.reach || 0), 0) || 0;
+    const totalImpressions = content?.reduce((sum, item) => sum + (item?.stats?.impressions || 0), 0) || 0;
+    const totalSaved = content?.reduce((sum, item) => sum + (item?.stats?.saved || 0), 0) || 0;
+    
+    // Calculate average engagement rate
+    const totalEngagement = totalLikes + totalComments + totalShares;
+    const avgEngagementRate = totalReach > 0 ? (totalEngagement / totalReach) * 100 : 0;
+    
+    // Count content types
+    const posts = content?.filter(item => item?.type === 'post')?.length || 0;
+    const reels = content?.filter(item => item?.type === 'reel')?.length || 0;
+    const stories = content?.filter(item => item?.type === 'story')?.length || 0;
+    
+    // Count performance categories
+    const highPerforming = content?.filter(item => item?.performance?.isHighPerforming)?.length || 0;
+    const underperforming = content?.filter(item => item?.performance?.isUnderperforming)?.length || 0;
+    
+    return {
+      totalLikes,
+      totalComments,
+      totalShares,
+      totalReach,
+      totalImpressions,
+      totalSaved,
+      avgEngagementRate,
+      posts,
+      reels,
+      stories,
+      highPerforming,
+      underperforming
+    };
   }
 }));
 

@@ -14,7 +14,7 @@ const contentRoutes = require('./content');
 
 // Log all requests to main router
 router.use('*', (req, res, next) => {
-  console.log(`📥 Main router received: ${req.method} ${req.originalUrl}`);
+  
   next();
 });
 

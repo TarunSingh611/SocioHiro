@@ -41,6 +41,28 @@ if (process.env.NODE_ENV === 'development') {
   // Instagram-specific endpoints (require Instagram token)
   router.use(requireInstagramToken);
 
+  // Check token status and validity
+  router.get('/token-status', async (req, res) => {
+    try {
+      const InstagramApiService = require('../services/instagramApi');
+      const instagramApi = new InstagramApiService(req.user.accessToken);
+      
+      const tokenInfo = await instagramApi.getTokenInfo();
+      const isValid = await instagramApi.isTokenValid();
+      
+      res.json({
+        isValid,
+        tokenInfo,
+        message: isValid ? 'Token is valid' : 'Token is invalid or expired'
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: 'Failed to check token status',
+        details: error.message 
+      });
+    }
+  });
+
   // TODO: Add Instagram-specific endpoints here
   router.get('/', (req, res) => {
     res.json({ message: 'Instagram route placeholder' });
