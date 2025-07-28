@@ -7,9 +7,58 @@ const { createDebugLogger } = require('../utils/debug');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const mongoose = require('mongoose');
+
+console.log('📁 Content routes file loaded');
 
 // Create debug logger for content routes
 const debug = createDebugLogger('CONTENT_ROUTES');
+
+// Log all requests to content routes
+router.use('*', (req, res, next) => {
+  console.log(`📥 Content router received: ${req.method} ${req.path}`);
+  next();
+});
+
+// Handle CORS preflight requests for content routes
+router.options('*', (req, res) => {
+  console.log('🔄 OPTIONS request to content routes');
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.status(200).end();
+});
+
+// Debug route to test if content routes are loaded
+router.get('/debug', (req, res) => {
+  console.log('🔍 GET /content/debug - Debug route hit');
+  res.json({
+    message: 'Content routes are loaded!',
+    timestamp: new Date().toISOString(),
+    availableRoutes: [
+      '/test',
+      '/test-content',
+      '/simple-test',
+      '/test-objectid',
+      '/debug',
+      '/',
+      '/sync',
+      '/sync/status',
+      '/stats'
+    ]
+  });
+});
+
+// Test route without authentication
+router.get('/test-no-auth', (req, res) => {
+  console.log('🔍 GET /content/test-no-auth - Test route without auth');
+  res.json({
+    message: 'Test route without authentication works!',
+    timestamp: new Date().toISOString(),
+    headers: req.headers,
+    user: req.user ? 'User found' : 'No user'
+  });
+});
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, '../../uploads');
@@ -43,22 +92,22 @@ const upload = multer({
   }
 });
 
-// Test endpoint (no auth required)
-router.get('/test', (req, res) => {
-  res.json({
-    message: 'Content routes are working!',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Apply authentication middleware to all routes except test
-router.use(requireAuth);
+// router.use(requireAuth);
 
 // Get content - prioritize Instagram content, fallback to local database
-router.get('/', async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
+    console.log('📥 GET /api/content - Request received');
     const { source = 'all', limit = 25, sync = 'auto' } = req.query;
-
+    
+    // User object should come from JWT token via requireAuth middleware
+    if (!req.user) {
+      console.error('❌ No user object found in request');
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    console.log('👤 User authenticated:', { userId: req.user._id, username: req.user.username });
+    
     debug.log('GET /content', { source, limit, sync, userId: req.user._id });
 
     // Auto-sync Instagram content if needed
@@ -79,6 +128,7 @@ router.get('/', async (req, res) => {
     });
 
     debug.log('Content fetched successfully', { count: result.content?.length || 0 });
+    console.log('✅ GET /api/content - Request completed successfully');
 
     res.json({
       ...result,
@@ -87,6 +137,7 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     debug.error('Error fetching content', error);
+    console.error('❌ GET /api/content - Error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -308,6 +359,179 @@ router.post('/upload', upload.array('media', 10), async (req, res) => {
     });
   } catch (error) {
     console.error('Error uploading media:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Simple test endpoint without contentSyncService
+router.get('/simple-test', async (req, res) => {
+  try {
+    console.log('GET /content/simple-test');
+    res.json({
+      message: 'Simple test endpoint working!',
+      timestamp: new Date().toISOString(),
+      user: req.user ? 'User found' : 'No user'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Test ObjectId conversion
+router.get('/test-objectid', async (req, res) => {
+  try {
+    const testId = new mongoose.Types.ObjectId("68823379150e46174ace598e");
+    res.json({
+      message: 'ObjectId conversion working!',
+      originalId: "68823379150e46174ace598e",
+      convertedId: testId,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get content by associations
+router.get('/associations/:type/:id', async (req, res) => {
+  try {
+    const { type, id } = req.params;
+    const content = await contentSyncService.getContentByAssociations(req.user._id, type, id);
+    
+    res.json({
+      content: content,
+      associationType: type,
+      associationId: id,
+      count: content.length
+    });
+  } catch (error) {
+    console.error('Error fetching content by associations:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get high performing content
+router.get('/performance/high', async (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+    const content = await contentSyncService.getHighPerformingContent(req.user._id, parseInt(limit));
+    
+    res.json({
+      content: content,
+      type: 'high-performing',
+      count: content.length
+    });
+  } catch (error) {
+    console.error('Error fetching high performing content:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get underperforming content
+router.get('/performance/low', async (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+    const content = await contentSyncService.getUnderperformingContent(req.user._id, parseInt(limit));
+    
+    res.json({
+      content: content,
+      type: 'underperforming',
+      count: content.length
+    });
+  } catch (error) {
+    console.error('Error fetching underperforming content:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update content associations
+router.put('/:id/associations', async (req, res) => {
+  try {
+    const { campaigns, automations, watchLists } = req.body;
+    const content = await contentSyncService.updateContentAssociations(req.params.id, {
+      campaigns,
+      automations,
+      watchLists
+    });
+    
+    res.json({
+      success: true,
+      content: content,
+      message: 'Content associations updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating content associations:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add content to watch list
+router.post('/:id/watchlist', async (req, res) => {
+  try {
+    const { watchListName } = req.body;
+    if (!watchListName) {
+      return res.status(400).json({ error: 'watchListName is required' });
+    }
+    
+    const content = await contentSyncService.addToWatchList(req.params.id, watchListName);
+    
+    res.json({
+      success: true,
+      content: content,
+      message: `Content added to watch list: ${watchListName}`
+    });
+  } catch (error) {
+    console.error('Error adding content to watch list:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove content from watch list
+router.delete('/:id/watchlist/:watchListName', async (req, res) => {
+  try {
+    const { watchListName } = req.params;
+    const content = await contentSyncService.removeFromWatchList(req.params.id, watchListName);
+    
+    res.json({
+      success: true,
+      content: content,
+      message: `Content removed from watch list: ${watchListName}`
+    });
+  } catch (error) {
+    console.error('Error removing content from watch list:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get content performance analysis
+router.get('/:id/performance', async (req, res) => {
+  try {
+    const Content = require('../models/Content');
+    const content = await Content.findById(req.params.id);
+    
+    if (!content) {
+      return res.status(404).json({ error: 'Content not found' });
+    }
+    
+    const performanceScore = contentSyncService.calculatePerformanceScore(content);
+    const engagementRate = content.getEngagementRate();
+    
+    res.json({
+      contentId: content._id,
+      performanceScore: performanceScore,
+      engagementRate: engagementRate,
+      isHighPerforming: performanceScore >= 70,
+      isUnderperforming: performanceScore <= 30,
+      stats: content.stats,
+      insights: content.insights,
+      associations: {
+        campaigns: content.campaigns?.length || 0,
+        automations: content.automations?.length || 0,
+        watchLists: content.watchLists?.length || 0
+      }
+    });
+  } catch (error) {
+    console.error('Error analyzing content performance:', error);
     res.status(500).json({ error: error.message });
   }
 });

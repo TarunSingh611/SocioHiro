@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getAnalyticsSummary, getRecentOrders, getCampaigns, getAutomations, getInstagramAccounts } from '../api';
+import { getAnalyticsSummary, getCampaigns, getAutomations, getInstagramAccounts } from '../api';
 import {
   CubeIcon,
   ChatBubbleLeftIcon,
@@ -55,7 +55,6 @@ const Dashboard = () => {
       try {
         const [analyticsRes, recentActivityRes, campaignsRes, automationsRes, instagramAccountsRes] = await Promise.all([
           getAnalyticsSummary(),
-          getRecentOrders(20), // Fetch more items for pagination
           getCampaigns(),
           getAutomations(),
           getInstagramAccounts()

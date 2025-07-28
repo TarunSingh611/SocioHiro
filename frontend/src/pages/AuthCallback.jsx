@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import axios from 'axios';
 import useUserStore from '../store/userStore';
 
 const AuthCallback = () => {
@@ -8,33 +7,44 @@ const AuthCallback = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const setUser = useUserStore((state) => state.setUser);
+  const { handleInstagramCallback, syncAuthState } = useUserStore();
 
   useEffect(() => {
     const handleCallback = async () => {
       try {
         const dataParam = searchParams.get('data');
         if (dataParam) {
-          const userData = JSON.parse(decodeURIComponent(dataParam));
-          if (userData.success) {
-            setUser(userData.user, userData.accessToken);
-            localStorage.setItem('isAuthenticated', 'true'); // Optional: for legacy code
-            navigate('/dashboard');
-          } else {
-            setError(userData.error || 'Authentication failed');
+          try {
+            const userData = JSON.parse(decodeURIComponent(dataParam));
+            console.log('Instagram callback data:', userData);
+            
+            await handleInstagramCallback(userData);
+            // Sync the auth state to ensure consistency
+            syncAuthState();
+            // Add a small delay to ensure state is properly set
+            setTimeout(() => {
+              navigate('/dashboard');
+            }, 100);
+          } catch (error) {
+            console.error('Instagram callback error:', error);
+            setError(error.message || 'Instagram authentication failed');
           }
         } else {
           // Fallback for direct API status check if no data param
           try {
-            const response = await axios.get('/api/instagram-oauth/user');
-            if (response.data) {
-              setUser(response.data, response.data.accessToken);
-              localStorage.setItem('isAuthenticated', 'true');
+            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/auth/instagram/callback`, {
+              credentials: 'include'
+            });
+            const responseData = await response.json();
+            await handleInstagramCallback(responseData);
+            // Sync the auth state to ensure consistency
+            syncAuthState();
+            // Add a small delay to ensure state is properly set
+            setTimeout(() => {
               navigate('/dashboard');
-            } else {
-              setError('Authentication failed - no user data received');
-            }
+            }, 100);
           } catch (apiError) {
+            console.error('Instagram callback API error:', apiError);
             setError('Authentication failed - unable to verify status');
           }
         }
@@ -45,7 +55,7 @@ const AuthCallback = () => {
       }
     };
     handleCallback();
-  }, [searchParams, navigate, setUser]);
+  }, [searchParams, navigate, handleInstagramCallback, syncAuthState]);
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div style={{ color: 'red' }}>{error}</div>;

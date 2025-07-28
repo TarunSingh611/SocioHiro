@@ -98,6 +98,28 @@ const contentSchema = new mongoose.Schema({
     saved: { type: Number, default: 0 },
     videoViews: { type: Number, default: 0 },
     videoViewRate: { type: Number, default: 0 }
+  },
+  // Campaign associations
+  campaigns: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Campaign'
+  }],
+  // Automation associations
+  automations: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'AutomationRule'
+  }],
+  // Watch list associations (for monitoring specific content)
+  watchLists: [{
+    type: String, // Watch list name/identifier
+    addedAt: { type: Date, default: Date.now }
+  }],
+  // Performance tracking
+  performance: {
+    isHighPerforming: { type: Boolean, default: false },
+    isUnderperforming: { type: Boolean, default: false },
+    performanceScore: { type: Number, default: 0 }, // 0-100 score
+    lastAnalyzed: { type: Date }
   }
 }, {
   timestamps: true
@@ -109,6 +131,10 @@ contentSchema.index({ userId: 1, isPublished: 1 });
 contentSchema.index({ userId: 1, status: 1 });
 contentSchema.index({ userId: 1, source: 1 });
 contentSchema.index({ instagramId: 1 });
+contentSchema.index({ campaigns: 1 });
+contentSchema.index({ automations: 1 });
+contentSchema.index({ 'performance.isHighPerforming': 1 });
+contentSchema.index({ 'performance.isUnderperforming': 1 });
 
 // Virtual for full scheduled datetime
 contentSchema.virtual('scheduledDateTime').get(function() {
@@ -142,6 +168,22 @@ contentSchema.methods.getEngagementRate = function() {
     return ((this.stats.likes + this.stats.comments) / this.stats.reach * 100).toFixed(2);
   }
   return 0;
+};
+
+// Method to check if content has associations
+contentSchema.methods.hasAssociations = function() {
+  return (this.campaigns && this.campaigns.length > 0) ||
+         (this.automations && this.automations.length > 0) ||
+         (this.watchLists && this.watchLists.length > 0);
+};
+
+// Method to get association count
+contentSchema.methods.getAssociationCount = function() {
+  let count = 0;
+  if (this.campaigns) count += this.campaigns.length;
+  if (this.automations) count += this.automations.length;
+  if (this.watchLists) count += this.watchLists.length;
+  return count;
 };
 
 // Pre-save middleware to update status

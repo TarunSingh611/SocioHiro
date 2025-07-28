@@ -5,6 +5,8 @@ const useContentStore = create((set, get) => ({
   // State
   content: [],
   instagramContent: [],
+  lastSync: null,
+  totalCount: 0,
   stats: {
     totalContent: 0,
     published: 0,
@@ -13,33 +15,32 @@ const useContentStore = create((set, get) => ({
   },
   loading: false,
   error: null,
-  useRealData: true, // Toggle between real and mock data
 
   // Actions
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   clearError: () => set({ error: null }),
-  setUseRealData: (useReal) => set({ useRealData: useReal }),
 
   fetchContent: async () => {
     try {
       set({ loading: true, error: null });
       
-      if (get().useRealData) {
-        // Fetch real content from database
-        const contentData = await contentService.fetchContent();
-        set({ content: contentData, loading: false });
-      } else {
-        // Use mock data for development
-        const mockContent = contentService.getMockContent();
-        set({ content: mockContent, loading: false });
-      }
+      // Fetch real content from database
+      const contentData = await contentService.fetchContent();
+      // Handle the API response structure
+      set({ 
+        content: contentData?.content || [], 
+        lastSync: contentData?.lastSync || null, 
+        totalCount: contentData?.totalCount || 0, 
+        loading: false 
+      });
     } catch (err) {
       set({ 
         error: err.message, 
         loading: false 
       });
       console.error('Error fetching content:', err);
+      throw err;
     }
   },
 
@@ -47,21 +48,16 @@ const useContentStore = create((set, get) => ({
     try {
       set({ loading: true, error: null });
       
-      if (get().useRealData) {
-        // Fetch real Instagram content
-        const instagramData = await contentService.fetchInstagramContent();
-        set({ instagramContent: instagramData, loading: false });
-      } else {
-        // Use mock data for development
-        const mockContent = contentService.getMockContent();
-        set({ instagramContent: mockContent, loading: false });
-      }
+      // Fetch real Instagram content
+      const instagramData = await contentService.fetchInstagramContent();
+      set({ instagramContent: instagramData, loading: false });
     } catch (err) {
       set({ 
         error: err.message, 
         loading: false 
       });
       console.error('Error fetching Instagram content:', err);
+      throw err;
     }
   },
 
@@ -69,25 +65,11 @@ const useContentStore = create((set, get) => ({
     try {
       set({ error: null });
       
-      if (get().useRealData) {
-        const newContent = await contentService.createContent(contentData);
-        set(state => ({
-          content: [newContent, ...state.content]
-        }));
-        return newContent;
-      } else {
-        // For development, create mock content
-        const newContent = {
-          id: Date.now(),
-          ...contentData,
-          stats: null,
-          publishedAt: null
-        };
-        set(state => ({
-          content: [newContent, ...state.content]
-        }));
-        return newContent;
-      }
+      const newContent = await contentService.createContent(contentData);
+      set(state => ({
+        content: [newContent, ...state.content]
+      }));
+      return newContent;
     } catch (err) {
       set({ error: err.message });
       throw err;
@@ -98,25 +80,14 @@ const useContentStore = create((set, get) => ({
     try {
       set({ error: null });
       
-      if (get().useRealData) {
-        await contentService.updateContent(contentId, contentData);
-        set(state => ({
-          content: state.content.map(item => 
-            item._id === contentId || item.id === contentId
-              ? { ...item, ...contentData }
-              : item
-          )
-        }));
-      } else {
-        // For development, update mock content
-        set(state => ({
-          content: state.content.map(item => 
-            item.id === contentId 
-              ? { ...item, ...contentData }
-              : item
-          )
-        }));
-      }
+      await contentService.updateContent(contentId, contentData);
+      set(state => ({
+        content: state.content.map(item => 
+          item._id === contentId || item.id === contentId
+            ? { ...item, ...contentData }
+            : item
+        )
+      }));
     } catch (err) {
       set({ error: err.message });
       throw err;
@@ -127,19 +98,12 @@ const useContentStore = create((set, get) => ({
     try {
       set({ error: null });
       
-      if (get().useRealData) {
-        await contentService.deleteContent(contentId);
-        set(state => ({
-          content: state.content.filter(item => 
-            item._id !== contentId && item.id !== contentId
-          )
-        }));
-      } else {
-        // For development, delete from mock content
-        set(state => ({
-          content: state.content.filter(item => item.id !== contentId)
-        }));
-      }
+      await contentService.deleteContent(contentId);
+      set(state => ({
+        content: state.content.filter(item => 
+          item._id !== contentId && item.id !== contentId
+        )
+      }));
     } catch (err) {
       set({ error: err.message });
       throw err;
@@ -150,37 +114,21 @@ const useContentStore = create((set, get) => ({
     try {
       set({ error: null });
       
-      if (get().useRealData) {
-        const publishResult = await contentService.publishContent(contentId);
-        set(state => ({
-          content: state.content.map(item => 
-            item._id === contentId || item.id === contentId
-              ? { 
-                  ...item, 
-                  isPublished: true, 
-                  publishedAt: new Date().toISOString(),
-                  instagramId: publishResult.instagramData?.id,
-                  permalink: publishResult.instagramData?.permalink
-                }
-              : item
-          )
-        }));
-        return publishResult;
-      } else {
-        // For development, update mock content
-        set(state => ({
-          content: state.content.map(item => 
-            item.id === contentId 
-              ? { 
-                  ...item, 
-                  isPublished: true, 
-                  publishedAt: new Date().toISOString(),
-                  stats: { likes: 0, comments: 0, shares: 0, reach: 0 }
-                }
-              : item
-          )
-        }));
-      }
+      const publishResult = await contentService.publishContent(contentId);
+      set(state => ({
+        content: state.content.map(item => 
+          item._id === contentId || item.id === contentId
+            ? { 
+                ...item, 
+                isPublished: true, 
+                publishedAt: new Date().toISOString(),
+                instagramId: publishResult.instagramData?.id,
+                permalink: publishResult.instagramData?.permalink
+              }
+            : item
+        )
+      }));
+      return publishResult;
     } catch (err) {
       set({ error: err.message });
       throw err;
@@ -191,22 +139,8 @@ const useContentStore = create((set, get) => ({
     try {
       set({ error: null });
       
-      if (get().useRealData) {
-        const uploadResult = await contentService.uploadMedia(files);
-        return uploadResult;
-      } else {
-        // For development, return mock upload result
-        return {
-          message: 'Files uploaded successfully (mock)',
-          files: files.map(file => ({
-            filename: file.name,
-            originalname: file.name,
-            mimetype: file.type,
-            size: file.size,
-            url: URL.createObjectURL(file)
-          }))
-        };
-      }
+      const uploadResult = await contentService.uploadMedia(files);
+      return uploadResult;
     } catch (err) {
       set({ error: err.message });
       throw err;
@@ -215,16 +149,7 @@ const useContentStore = create((set, get) => ({
 
   getMediaInsights: async (mediaId) => {
     try {
-      if (get().useRealData) {
-        return await contentService.getMediaInsights(mediaId);
-      } else {
-        // Return mock insights
-        return [
-          { name: 'impressions', value: Math.floor(Math.random() * 1000) },
-          { name: 'reach', value: Math.floor(Math.random() * 500) },
-          { name: 'engagement', value: Math.floor(Math.random() * 100) }
-        ];
-      }
+      return await contentService.getMediaInsights(mediaId);
     } catch (err) {
       console.error('Error fetching media insights:', err);
       throw err;
@@ -233,25 +158,7 @@ const useContentStore = create((set, get) => ({
 
   getComments: async (mediaId) => {
     try {
-      if (get().useRealData) {
-        return await contentService.getComments(mediaId);
-      } else {
-        // Return mock comments
-        return [
-          {
-            id: '1',
-            text: 'Great post! 👍',
-            from: { username: 'user1' },
-            timestamp: new Date().toISOString()
-          },
-          {
-            id: '2',
-            text: 'Love this content!',
-            from: { username: 'user2' },
-            timestamp: new Date().toISOString()
-          }
-        ];
-      }
+      return await contentService.getComments(mediaId);
     } catch (err) {
       console.error('Error fetching comments:', err);
       throw err;
@@ -260,15 +167,7 @@ const useContentStore = create((set, get) => ({
 
   replyToComment: async (commentId, replyText) => {
     try {
-      if (get().useRealData) {
-        return await contentService.replyToComment(commentId, replyText);
-      } else {
-        // Return mock reply
-        return {
-          success: true,
-          message: 'Reply posted successfully (mock)'
-        };
-      }
+      return await contentService.replyToComment(commentId, replyText);
     } catch (err) {
       console.error('Error replying to comment:', err);
       throw err;
@@ -300,6 +199,152 @@ const useContentStore = create((set, get) => ({
   getCombinedContent: () => {
     const { content, instagramContent } = get();
     return [...content, ...instagramContent];
+  },
+
+  // New methods for associations and performance
+
+  fetchContentByAssociations: async (associationType, associationId) => {
+    try {
+      set({ loading: true, error: null });
+      
+      const result = await contentService.getContentByAssociations(associationType, associationId);
+      set({ content: result.content, loading: false });
+      return result;
+    } catch (err) {
+      set({ 
+        error: err.message, 
+        loading: false 
+      });
+      console.error('Error fetching content by associations:', err);
+      throw err;
+    }
+  },
+
+  fetchHighPerformingContent: async (limit = 10) => {
+    try {
+      set({ loading: true, error: null });
+      
+      const result = await contentService.getHighPerformingContent(limit);
+      set({ content: result.content, loading: false });
+      return result;
+    } catch (err) {
+      set({ 
+        error: err.message, 
+        loading: false 
+      });
+      console.error('Error fetching high performing content:', err);
+      throw err;
+    }
+  },
+
+  fetchUnderperformingContent: async (limit = 10) => {
+    try {
+      set({ loading: true, error: null });
+      
+      const result = await contentService.getUnderperformingContent(limit);
+      set({ content: result.content, loading: false });
+      return result;
+    } catch (err) {
+      set({ 
+        error: err.message, 
+        loading: false 
+      });
+      console.error('Error fetching underperforming content:', err);
+      throw err;
+    }
+  },
+
+  updateContentAssociations: async (contentId, associations) => {
+    try {
+      set({ error: null });
+      
+      const result = await contentService.updateContentAssociations(contentId, associations);
+      
+      // Update the content in the store
+      set(state => ({
+        content: state.content.map(item => 
+          item._id === contentId || item.id === contentId
+            ? { ...item, ...result.content }
+            : item
+        )
+      }));
+      
+      return result;
+    } catch (err) {
+      set({ error: err.message });
+      throw err;
+    }
+  },
+
+  addToWatchList: async (contentId, watchListName) => {
+    try {
+      set({ error: null });
+      
+      const result = await contentService.addToWatchList(contentId, watchListName);
+      
+      // Update the content in the store
+      set(state => ({
+        content: state.content.map(item => 
+          item._id === contentId || item.id === contentId
+            ? { ...item, ...result.content }
+            : item
+        )
+      }));
+      
+      return result;
+    } catch (err) {
+      set({ error: err.message });
+      throw err;
+    }
+  },
+
+  removeFromWatchList: async (contentId, watchListName) => {
+    try {
+      set({ error: null });
+      
+      const result = await contentService.removeFromWatchList(contentId, watchListName);
+      
+      // Update the content in the store
+      set(state => ({
+        content: state.content.map(item => 
+          item._id === contentId || item.id === contentId
+            ? { ...item, ...result.content }
+            : item
+        )
+      }));
+      
+      return result;
+    } catch (err) {
+      set({ error: err.message });
+      throw err;
+    }
+  },
+
+  getContentPerformance: async (contentId) => {
+    try {
+      const result = await contentService.getContentPerformance(contentId);
+      return result;
+    } catch (err) {
+      console.error('Error fetching content performance:', err);
+      throw err;
+    }
+  },
+
+  // Computed selectors for performance
+  getHighPerformingContent: () => {
+    const { content } = get();
+    return content.filter(item => item.performance?.isHighPerforming);
+  },
+
+  getUnderperformingContent: () => {
+    const { content } = get();
+    return content.filter(item => item.performance?.isUnderperforming);
+  },
+
+  getContentWithAssociations: () => {
+    const { content } = get();
+    return content.filter(item => item.hasAssociations?.() || 
+      (item.campaigns?.length > 0 || item.automations?.length > 0 || item.watchLists?.length > 0));
   }
 }));
 

@@ -1,6 +1,8 @@
 const InstagramApiService = require('./instagramApi');
 const Content = require('../models/Content');
 const User = require('../models/User');
+const AutomationRule = require('../models/AutomationRule');
+const Campaign = require('../models/Campaign');
 
 class ContentSyncService {
   constructor() {
@@ -17,10 +19,8 @@ class ContentSyncService {
       }
 
       const instagramApi = new InstagramApiService(user.accessToken);
-      const instagramBusinessAccountId = await instagramApi.getInstagramBusinessAccount();
-      
       // Get Instagram media
-      const instagramMedia = await instagramApi.getInstagramMedia(instagramBusinessAccountId, 50);
+      const instagramMedia = await instagramApi.getInstagramMedia(50);
       
       // Get insights for each media item
       const mediaWithInsights = await Promise.all(
@@ -143,14 +143,173 @@ class ContentSyncService {
     }
 
     const content = await Content.find(query)
+      .populate('campaigns', 'name description status')
+      .populate('automations', 'name description triggerType isActive')
       .sort({ createdAt: -1 })
       .limit(parseInt(limit));
 
+    // Analyze performance for each content item
+    const contentWithAnalysis = content.map(item => {
+      const analyzedItem = item.toObject();
+      
+      // Calculate performance score
+      const performanceScore = this.calculatePerformanceScore(item);
+      analyzedItem.performanceScore = performanceScore;
+      
+      // Determine if high/under performing
+      analyzedItem.performance.isHighPerforming = performanceScore >= 70;
+      analyzedItem.performance.isUnderperforming = performanceScore <= 30;
+      analyzedItem.performance.lastAnalyzed = new Date();
+      
+      return analyzedItem;
+    });
+
     return {
-      content: content,
+      content: contentWithAnalysis,
       source: source,
-      totalCount: content.length
+      totalCount: contentWithAnalysis.length
     };
+  }
+
+  // Calculate performance score for content
+  calculatePerformanceScore(content) {
+    let score = 0;
+    
+    // Engagement rate (40% weight)
+    const engagementRate = content.getEngagementRate();
+    if (engagementRate > 5) score += 40;
+    else if (engagementRate > 3) score += 30;
+    else if (engagementRate > 1) score += 20;
+    else if (engagementRate > 0.5) score += 10;
+    
+    // Reach (30% weight)
+    const reach = content.stats.reach || 0;
+    if (reach > 10000) score += 30;
+    else if (reach > 5000) score += 25;
+    else if (reach > 1000) score += 20;
+    else if (reach > 500) score += 15;
+    else if (reach > 100) score += 10;
+    
+    // Likes (20% weight)
+    const likes = content.stats.likes || 0;
+    if (likes > 1000) score += 20;
+    else if (likes > 500) score += 15;
+    else if (likes > 100) score += 10;
+    else if (likes > 50) score += 5;
+    
+    // Comments (10% weight)
+    const comments = content.stats.comments || 0;
+    if (comments > 100) score += 10;
+    else if (comments > 50) score += 8;
+    else if (comments > 20) score += 5;
+    else if (comments > 5) score += 2;
+    
+    return Math.min(score, 100);
+  }
+
+  // Update content associations
+  async updateContentAssociations(contentId, associations) {
+    const { campaigns, automations, watchLists } = associations;
+    
+    const updateData = {};
+    if (campaigns) updateData.campaigns = campaigns;
+    if (automations) updateData.automations = automations;
+    if (watchLists) updateData.watchLists = watchLists;
+    
+    const content = await Content.findByIdAndUpdate(
+      contentId,
+      { $set: updateData },
+      { new: true }
+    );
+    
+    return content;
+  }
+
+  // Add content to watch list
+  async addToWatchList(contentId, watchListName) {
+    const content = await Content.findByIdAndUpdate(
+      contentId,
+      { 
+        $addToSet: { 
+          watchLists: { 
+            type: watchListName,
+            addedAt: new Date()
+          }
+        }
+      },
+      { new: true }
+    );
+    
+    return content;
+  }
+
+  // Remove content from watch list
+  async removeFromWatchList(contentId, watchListName) {
+    const content = await Content.findByIdAndUpdate(
+      contentId,
+      { 
+        $pull: { 
+          watchLists: { type: watchListName }
+        }
+      },
+      { new: true }
+    );
+    
+    return content;
+  }
+
+  // Get content by associations
+  async getContentByAssociations(userId, associationType, associationId) {
+    let query = { userId: userId };
+    
+    switch (associationType) {
+      case 'campaign':
+        query.campaigns = associationId;
+        break;
+      case 'automation':
+        query.automations = associationId;
+        break;
+      case 'watchlist':
+        query['watchLists.type'] = associationId;
+        break;
+      default:
+        throw new Error('Invalid association type');
+    }
+    
+    const content = await Content.find(query)
+      .populate('campaigns', 'name description status')
+      .populate('automations', 'name description triggerType isActive')
+      .sort({ createdAt: -1 });
+    
+    return content;
+  }
+
+  // Get high performing content
+  async getHighPerformingContent(userId, limit = 10) {
+    const content = await Content.find({
+      userId: userId,
+      'performance.isHighPerforming': true
+    })
+    .populate('campaigns', 'name description status')
+    .populate('automations', 'name description triggerType isActive')
+    .sort({ 'performance.performanceScore': -1 })
+    .limit(limit);
+    
+    return content;
+  }
+
+  // Get underperforming content
+  async getUnderperformingContent(userId, limit = 10) {
+    const content = await Content.find({
+      userId: userId,
+      'performance.isUnderperforming': true
+    })
+    .populate('campaigns', 'name description status')
+    .populate('automations', 'name description triggerType isActive')
+    .sort({ 'performance.performanceScore': 1 })
+    .limit(limit);
+    
+    return content;
   }
 
   // Get content statistics

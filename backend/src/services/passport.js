@@ -7,10 +7,6 @@ dotenv.config();
 // For Instagram Graph API, we use Facebook OAuth since Instagram Business accounts
 // are connected to Facebook Pages
 
-console.log(process.env.INSTAGRAM_APP_ID);
-console.log(process.env.INSTAGRAM_APP_SECRET);
-console.log(process.env.INSTAGRAM_CALLBACK_URL);
-
 passport.use(new FacebookStrategy({
     clientID: process.env.INSTAGRAM_APP_ID,
     clientSecret: process.env.INSTAGRAM_APP_SECRET,
@@ -48,18 +44,5 @@ passport.use(new FacebookStrategy({
     }
   }
 ));
-
-passport.serializeUser((user, done) => {
-  done(null, user.id);
-});
-
-passport.deserializeUser(async (id, done) => {
-  try {
-    const user = await User.findById(id);
-    done(null, user);
-  } catch (error) {
-    done(error, null);
-  }
-});
 
 module.exports = passport; 

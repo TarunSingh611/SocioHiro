@@ -25,16 +25,16 @@ const ContentForm = ({
   useEffect(() => {
     if (content) {
       setFormData({
-        title: content.title || '',
-        description: content.description || '',
-        type: content.type || 'post',
-        content: content.content || '',
-        mediaUrls: content.mediaUrls || [],
-        scheduledDate: content.scheduledDate || '',
-        scheduledTime: content.scheduledTime || '',
-        hashtags: Array.isArray(content.hashtags) ? content.hashtags.join(', ') : '',
-        location: content.location || '',
-        isPublished: content.isPublished !== false
+        title: content?.title || '',
+        description: content?.description || '',
+        type: content?.type || 'post',
+        content: content?.content || '',
+        mediaUrls: content?.mediaUrls || [],
+        scheduledDate: content?.scheduledDate || '',
+        scheduledTime: content?.scheduledTime || '',
+        hashtags: Array.isArray(content?.hashtags) ? content.hashtags.join(', ') : '',
+        location: content?.location || '',
+        isPublished: content?.isPublished !== false
       });
     }
   }, [content]);
@@ -98,25 +98,26 @@ const ContentForm = ({
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                  Content Title
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Title
                 </label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => handleInputChange('title', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter content title"
                 />
               </div>
+              
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                  Content Type
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Type
                 </label>
                 <select
                   value={formData.type}
                   onChange={(e) => handleInputChange('type', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="post">Post</option>
                   <option value="story">Story</option>
@@ -125,110 +126,126 @@ const ContentForm = ({
                 </select>
               </div>
             </div>
-            
+
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Description
               </label>
               <textarea
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter content description"
               />
             </div>
 
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Content
               </label>
               <textarea
                 value={formData.content}
                 onChange={(e) => handleInputChange('content', e.target.value)}
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Write your content here..."
-              />
-            </div>
-
-            {/* Media Upload */}
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                Media Files
-              </label>
-              <MediaUpload
-                onMediaUpload={handleMediaUpload}
-                maxFiles={getMaxFiles()}
-                acceptedTypes={getAcceptedTypes()}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter content text"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Hashtags
+                </label>
+                <input
+                  type="text"
+                  value={formData.hashtags}
+                  onChange={(e) => handleInputChange('hashtags', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter hashtags separated by commas"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Location
+                </label>
+                <input
+                  type="text"
+                  value={formData.location}
+                  onChange={(e) => handleInputChange('location', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter location"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Scheduled Date
                 </label>
                 <input
                   type="date"
                   value={formData.scheduledDate}
                   onChange={(e) => handleInputChange('scheduledDate', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+              
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Scheduled Time
                 </label>
                 <input
                   type="time"
                   value={formData.scheduledTime}
                   onChange={(e) => handleInputChange('scheduledTime', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                Hashtags (comma-separated)
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Media Upload
               </label>
-              <input
-                type="text"
-                value={formData.hashtags}
-                onChange={(e) => handleInputChange('hashtags', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="#hashtag1, #hashtag2, #hashtag3"
+              <MediaUpload
+                onUpload={handleMediaUpload}
+                maxFiles={getMaxFiles()}
+                acceptedTypes={getAcceptedTypes()}
+                uploadedFiles={uploadedFiles}
               />
             </div>
 
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                Location
-              </label>
+            <div className="flex items-center">
               <input
-                type="text"
-                value={formData.location}
-                onChange={(e) => handleInputChange('location', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="City, State"
+                type="checkbox"
+                id="isPublished"
+                checked={formData.isPublished}
+                onChange={(e) => handleInputChange('isPublished', e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
+              <label htmlFor="isPublished" className="ml-2 block text-sm text-gray-900">
+                Publish immediately
+              </label>
             </div>
 
             <div className="flex justify-end space-x-3">
               <button
                 type="button"
                 onClick={onCancel}
-                disabled={isSubmitting}
-                className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50"
               >
-                {isSubmitting ? 'Saving...' : (content ? 'Update Content' : 'Create Content')}
+                {isSubmitting ? 'Saving...' : (content ? 'Update' : 'Create')}
               </button>
             </div>
           </form>

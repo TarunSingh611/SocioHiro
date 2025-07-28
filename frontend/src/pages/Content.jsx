@@ -3,8 +3,13 @@ import useContentStore from '../store/contentStore';
 import ContentHeader from '../components/content/ContentHeader';
 import ContentStats from '../components/content/ContentStats';
 import ContentList from '../components/content/ContentList';
+import ContentAnalytics from '../components/content/ContentAnalytics';
 import ContentForm from '../components/content/ContentForm';
 import LoadingSpinner from '../components/content/LoadingSpinner';
+import {
+  PhotoIcon,
+  ChartBarIcon
+} from '@heroicons/react/24/outline';
 
 const Content = () => {
   const {
@@ -16,31 +21,17 @@ const Content = () => {
     updateContent,
     deleteContent,
     publishContent,
-    fetchContent,
-    useRealData,
-    setUseRealData
+    fetchContent
   } = useContentStore();
 
   const [showForm, setShowForm] = useState(false);
   const [editingContent, setEditingContent] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState('content'); // 'content' or 'analytics'
 
   useEffect(() => {
     fetchContent();
   }, [fetchContent]);
-
-  // Debug logging
-  useEffect(() => {
-    console.log('Content state:', {
-      content,
-      loading,
-      error,
-      useRealData,
-      contentType: typeof content,
-      isArray: Array.isArray(content),
-      length: content?.length
-    });
-  }, [content, loading, error, useRealData]);
 
   const handleCreateNew = () => {
     setEditingContent(null);
@@ -93,10 +84,6 @@ const Content = () => {
     setEditingContent(null);
   };
 
-  const toggleDataMode = () => {
-    setUseRealData(!useRealData);
-  };
-
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -107,46 +94,67 @@ const Content = () => {
         <ContentHeader onCreateNew={handleCreateNew} />
         <div className="bg-red-50 border border-red-200 rounded-md p-4">
           <p className="text-red-800">Error loading content: {error}</p>
-          <button
-            onClick={toggleDataMode}
-            className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Switch to {useRealData ? 'Mock' : 'Real'} Data
-          </button>
+          <p className="text-red-600 text-sm mt-2">
+            Please check your connection and try again. Only real Instagram data is displayed.
+          </p>
         </div>
       </div>
     );
   }
 
+  // Ensure content is an array with null checking
+  const contentArray = Array.isArray(content) ? content : [];
+
   return (
     <div className="space-y-6">
       <ContentHeader onCreateNew={handleCreateNew} />
       
-      {/* Debug info - remove in production */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-          <p className="text-yellow-800 text-sm">
-            Debug: Content type: {typeof content}, Length: {content?.length || 0}, 
-            Use Real Data: {useRealData ? 'Yes' : 'No'}
-          </p>
-          <button
-            onClick={toggleDataMode}
-            className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Switch to {useRealData ? 'Mock' : 'Real'} Data
-          </button>
+      {/* Tabs */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8 px-6">
+            <button
+              onClick={() => setActiveTab('content')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'content'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <PhotoIcon className="h-5 w-5 inline mr-2" />
+              Content
+            </button>
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'analytics'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <ChartBarIcon className="h-5 w-5 inline mr-2" />
+              Analytics
+            </button>
+          </nav>
         </div>
-      )}
-      
-      <ContentStats stats={stats} />
-      
-      <ContentList
-        content={content || []}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onPublish={handlePublish}
-        onCreateNew={handleCreateNew}
-      />
+        
+        <div className="p-6">
+          {activeTab === 'content' ? (
+            <div className="space-y-6">
+              <ContentStats stats={stats} content={contentArray} />
+              <ContentList
+                content={contentArray}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onPublish={handlePublish}
+                onCreateNew={handleCreateNew}
+              />
+            </div>
+          ) : (
+            <ContentAnalytics content={contentArray} />
+          )}
+        </div>
+      </div>
 
       {showForm && (
         <ContentForm

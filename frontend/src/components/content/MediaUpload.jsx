@@ -6,11 +6,21 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 
-const MediaUpload = ({ onMediaUpload, maxFiles = 10, acceptedTypes = ['image/*', 'video/*'] }) => {
+const MediaUpload = ({ 
+  onUpload, 
+  onMediaUpload, // For backward compatibility
+  maxFiles = 10, 
+  acceptedTypes = ['image/*', 'video/*'],
+  uploadedFiles: externalUploadedFiles = []
+}) => {
   const [dragActive, setDragActive] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [internalUploadedFiles, setInternalUploadedFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Use external uploadedFiles if provided, otherwise use internal state
+  const uploadedFiles = externalUploadedFiles.length > 0 ? externalUploadedFiles : internalUploadedFiles;
+  const setUploadedFiles = externalUploadedFiles.length > 0 ? () => {} : setInternalUploadedFiles;
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -27,7 +37,7 @@ const MediaUpload = ({ onMediaUpload, maxFiles = 10, acceptedTypes = ['image/*',
     e.stopPropagation();
     setDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+    if (e.dataTransfer?.files && e.dataTransfer.files[0]) {
       handleFiles(e.dataTransfer.files);
     }
   };
@@ -35,44 +45,49 @@ const MediaUpload = ({ onMediaUpload, maxFiles = 10, acceptedTypes = ['image/*',
   const handleFiles = (files) => {
     const fileArray = Array.from(files);
     const validFiles = fileArray.filter(file => {
-      return acceptedTypes.some(type => {
-        if (type.includes('*')) {
-          return file.type.startsWith(type.replace('*', ''));
+      return acceptedTypes?.some(type => {
+        if (type?.includes('*')) {
+          return file.type?.startsWith(type.replace('*', ''));
         }
         return file.type === type;
       });
     });
 
-    if (uploadedFiles.length + validFiles.length > maxFiles) {
+    if (uploadedFiles?.length + validFiles.length > maxFiles) {
       alert(`You can only upload up to ${maxFiles} files`);
       return;
     }
 
-    setUploadedFiles(prev => [...prev, ...validFiles]);
-    onMediaUpload(validFiles);
+    setUploadedFiles(prev => [...(prev || []), ...validFiles]);
+    
+    // Call the appropriate callback
+    const callback = onUpload || onMediaUpload;
+    if (callback) {
+      callback(validFiles);
+    }
   };
 
   const handleFileInput = (e) => {
-    if (e.target.files && e.target.files[0]) {
+    if (e.target?.files && e.target.files[0]) {
       handleFiles(e.target.files);
     }
   };
 
   const removeFile = (index) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    setUploadedFiles(prev => prev?.filter((_, i) => i !== index) || []);
   };
 
   const getFileIcon = (file) => {
-    if (file.type.startsWith('image/')) {
+    if (file?.type?.startsWith('image/')) {
       return PhotoIcon;
-    } else if (file.type.startsWith('video/')) {
+    } else if (file?.type?.startsWith('video/')) {
       return VideoCameraIcon;
     }
     return PhotoIcon;
   };
 
   const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
+    if (!bytes || bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -97,66 +112,52 @@ const MediaUpload = ({ onMediaUpload, maxFiles = 10, acceptedTypes = ['image/*',
           ref={fileInputRef}
           type="file"
           multiple
-          accept={acceptedTypes.join(',')}
+          accept={acceptedTypes?.join(',')}
           onChange={handleFileInput}
-          className="hidden"
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         />
-
-        <CloudArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
-        <div className="mt-4">
-          <p className="text-sm font-medium text-gray-900">
-            Drag and drop your media files here
-          </p>
-          <p className="text-xs text-gray-500 mt-1">
-            or{' '}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="text-blue-600 hover:text-blue-700 font-medium"
-            >
-              browse files
-            </button>
-          </p>
-          <p className="text-xs text-gray-400 mt-2">
-            Supports: JPG, PNG, GIF, MP4, MOV (Max {maxFiles} files)
+        
+        <div className="space-y-2">
+          <CloudArrowUpIcon className="mx-auto h-8 w-8 text-gray-400" />
+          <div className="text-sm text-gray-600">
+            <span className="font-medium text-blue-600 hover:text-blue-500">
+              Click to upload
+            </span>{' '}
+            or drag and drop
+          </div>
+          <p className="text-xs text-gray-500">
+            {acceptedTypes?.join(', ')} up to {maxFiles} files
           </p>
         </div>
       </div>
 
-      {/* Uploaded Files Preview */}
-      {uploadedFiles.length > 0 && (
-        <div className="space-y-3">
-          <h4 className="text-sm font-medium text-gray-900">
-            Selected Files ({uploadedFiles.length}/{maxFiles})
-          </h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {/* Uploaded Files List */}
+      {uploadedFiles?.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium text-gray-700">Uploaded Files</h4>
+          <div className="space-y-2">
             {uploadedFiles.map((file, index) => {
               const Icon = getFileIcon(file);
               return (
-                <div
-                  key={index}
-                  className="relative group border border-gray-200 rounded-lg p-3 bg-gray-50"
-                >
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-3">
-                    <div className="flex-shrink-0">
-                      <Icon className="h-8 w-8 text-gray-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {file.name}
+                    <Icon className="h-5 w-5 text-gray-400" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {file?.name || 'Unknown file'}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {formatFileSize(file.size)}
+                        {formatFileSize(file?.size)}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeFile(index)}
-                      className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <XMarkIcon className="h-4 w-4 text-red-500 hover:text-red-700" />
-                    </button>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(index)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                  </button>
                 </div>
               );
             })}
@@ -166,11 +167,9 @@ const MediaUpload = ({ onMediaUpload, maxFiles = 10, acceptedTypes = ['image/*',
 
       {/* Upload Progress */}
       {uploading && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-            <p className="text-sm text-blue-800">Uploading files...</p>
-          </div>
+        <div className="flex items-center space-x-2">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          <span className="text-sm text-gray-600">Uploading...</span>
         </div>
       )}
     </div>

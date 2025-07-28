@@ -16,11 +16,19 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
-  GlobeAltIcon
+  GlobeAltIcon,
+  ClockIcon,
+  ComputerDesktopIcon,
+  DevicePhoneMobileIcon,
+  DeviceTabletIcon
 } from '@heroicons/react/24/outline';
+import useUserStore from '../store/userStore';
+import LogoutModal from '../components/LogoutModal';
+import SessionLimitModal from '../components/SessionLimitModal';
 
 const AccountSettings = () => {
   const navigate = useNavigate();
+  const { logout, logoutAllDevices, getSessionStatus, getActiveSessions, getRecentSessions, removeSession } = useUserStore();
   const [activeTab, setActiveTab] = useState('profile');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -28,7 +36,53 @@ const AccountSettings = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
   const navRef = React.useRef(null);
+
+  // Fetch session information on component mount
+  useEffect(() => {
+    const fetchSessionInfo = async () => {
+      try {
+        const session = await getSessionStatus();
+        if (session) {
+          setSessionInfo(session);
+        }
+      } catch (error) {
+        console.error('Failed to fetch session info:', error);
+      }
+    };
+
+    const fetchActiveSessions = async () => {
+      try {
+        setSessionLoading(true);
+        const sessions = await getActiveSessions();
+        setActiveSessions(sessions || []);
+      } catch (error) {
+        console.error('Failed to fetch active sessions:', error);
+        setActiveSessions([]);
+      } finally {
+        setSessionLoading(false);
+      }
+    };
+
+    const fetchRecentSessions = async () => {
+      try {
+        setRecentSessionsLoading(true);
+        const sessions = await getRecentSessions();
+        setRecentSessions(sessions || []);
+      } catch (error) {
+        console.error('Failed to fetch recent sessions:', error);
+        setRecentSessions([]);
+      } finally {
+        setRecentSessionsLoading(false);
+      }
+    };
+
+    fetchSessionInfo();
+    fetchActiveSessions();
+    fetchRecentSessions();
+  }, [getSessionStatus, getActiveSessions, getRecentSessions]);
 
   const [profileData, setProfileData] = useState({
     firstName: 'John',
@@ -90,6 +144,22 @@ const AccountSettings = () => {
       storage: '10GB'
     }
   });
+
+  const [sessionInfo, setSessionInfo] = useState({
+    isActive: false,
+    lastLoginAt: null,
+    lastLogoutAt: null,
+    sessionCount: 0,
+    hasInstagramToken: false,
+    activeSessions: 0,
+    maxConcurrentSessions: 5
+  });
+
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [recentSessions, setRecentSessions] = useState([]);
+  const [sessionLoading, setSessionLoading] = useState(false);
+  const [recentSessionsLoading, setRecentSessionsLoading] = useState(false);
+  const [showSessionLimitModal, setShowSessionLimitModal] = useState(false);
 
   const [connectedAccounts, setConnectedAccounts] = useState([
     {
@@ -157,6 +227,7 @@ const AccountSettings = () => {
 
   const tabs = [
     { id: 'profile', name: 'Profile', icon: UserIcon },
+    { id: 'session', name: 'Session', icon: InformationCircleIcon },
     { id: 'security', name: 'Security', icon: ShieldCheckIcon },
     { id: 'notifications', name: 'Notifications', icon: BellIcon },
     { id: 'platform', name: 'Platform Settings', icon: CogIcon },
@@ -230,10 +301,78 @@ const AccountSettings = () => {
   };
 
   const handleLogout = () => {
-    if (window.confirm('Are you sure you want to logout?')) {
-      localStorage.removeItem('token');
+    setShowLogoutModal(true);
+  };
+
+  const handleLogoutConfirm = async () => {
+    setLogoutLoading(true);
+    try {
+      await logout();
       navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      setLogoutLoading(false);
+      setShowLogoutModal(false);
     }
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutModal(false);
+  };
+
+  const handleLogoutAllDevices = async () => {
+    setLogoutLoading(true);
+    try {
+      await logoutAllDevices();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout all devices failed:', error);
+    } finally {
+      setLogoutLoading(false);
+      setShowLogoutModal(false);
+    }
+  };
+
+  const handleRemoveSession = async (sessionId) => {
+    try {
+      const success = await removeSession(sessionId);
+      if (success) {
+        // Refresh active sessions and recent sessions
+        const [activeSessions, recentSessions] = await Promise.all([
+          getActiveSessions(),
+          getRecentSessions()
+        ]);
+        setActiveSessions(activeSessions);
+        setRecentSessions(recentSessions);
+        setMessage({ type: 'success', text: 'Session removed successfully!' });
+        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      }
+    } catch (error) {
+      console.error('Failed to remove session:', error);
+      setMessage({ type: 'error', text: 'Failed to remove session' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    }
+  };
+
+  const getDeviceIcon = (platform) => {
+    switch (platform.toLowerCase()) {
+      case 'ios':
+      case 'android':
+        return <DevicePhoneMobileIcon className="h-4 w-4" />;
+      case 'ipad':
+        return <DeviceTabletIcon className="h-4 w-4" />;
+      default:
+        return <ComputerDesktopIcon className="h-4 w-4" />;
+    }
+  };
+
+  const formatDuration = (minutes) => {
+    if (!minutes) return 'N/A';
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
   };
 
   const checkScrollButtons = () => {
@@ -352,6 +491,189 @@ const AccountSettings = () => {
           </div>
         </form>
       </div>
+    </div>
+  );
+
+  const renderSessionInfo = () => (
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">Session Information</h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700">Session Status</span>
+            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+              sessionInfo?.isActive 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-red-100 text-red-800'
+            }`}>
+              {sessionInfo?.isActive ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700">Active Sessions</span>
+            <span className="text-sm text-gray-900">
+              {sessionInfo?.activeSessions || 0} / {sessionInfo?.maxConcurrentSessions || 5}
+            </span>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700">Instagram Token</span>
+            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+              sessionInfo?.hasInstagramToken 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-gray-100 text-gray-800'
+            }`}>
+              {sessionInfo?.hasInstagramToken ? 'Connected' : 'Not Connected'}
+            </span>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700">Total Sessions</span>
+            <span className="text-sm text-gray-900">{sessionInfo?.sessionCount || 0}</span>
+          </div>
+          
+          {sessionInfo?.lastLoginAt && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Last Login</span>
+              <span className="text-sm text-gray-900">
+                {new Date(sessionInfo?.lastLoginAt).toLocaleString()}
+              </span>
+            </div>
+          )}
+          
+          {sessionInfo?.lastLogoutAt && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Last Logout</span>
+              <span className="text-sm text-gray-900">
+                {new Date(sessionInfo?.lastLogoutAt).toLocaleString()}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Active Sessions */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900">Active Devices</h3>
+          <button
+            onClick={handleLogoutAllDevices}
+            className="px-3 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+          >
+            Logout All Devices
+          </button>
+        </div>
+        
+        {sessionLoading ? (
+          <div className="text-center py-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-sm text-gray-600">Loading sessions...</p>
+          </div>
+        ) : activeSessions.length > 0 ? (
+          <div className="space-y-4">
+            {activeSessions.filter(session => session && session.sessionId).map((session) => (
+              <div key={session.sessionId} className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2">
+                                              <span className="text-sm font-medium text-gray-900">
+                          {session.deviceInfo?.browser || 'Unknown'} on {session.deviceInfo?.platform || 'Unknown'}
+                        </span>
+                      {session.isCurrentSession && (
+                        <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                          Current
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      IP: {session.deviceInfo?.ipAddress || 'Unknown'}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Last activity: {session.lastActivityAt ? new Date(session.lastActivityAt).toLocaleString() : 'N/A'}
+                    </div>
+                  </div>
+                  {!session.isCurrentSession && (
+                    <button
+                      onClick={() => handleRemoveSession(session.sessionId)}
+                      className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <p>No active sessions found</p>
+          </div>
+        )}
+      </div>
+
+      {/* Recent Sessions */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900">Recent Sessions</h3>
+          <div className="flex items-center space-x-2">
+            <ClockIcon className="h-5 w-5 text-gray-400" />
+            <span className="text-sm text-gray-500">Last 10 sessions</span>
+          </div>
+        </div>
+        
+        {recentSessionsLoading ? (
+          <div className="text-center py-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-sm text-gray-600">Loading recent sessions...</p>
+          </div>
+        ) : recentSessions && recentSessions.length > 0 ? (
+          <div className="space-y-3">
+            {recentSessions.filter(session => session && session.sessionId).map((session) => (
+              <div key={session.sessionId} className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3 flex-1">
+                    <div className="flex-shrink-0">
+                      {getDeviceIcon(session.deviceInfo?.platform)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {session.deviceInfo?.browser || 'Unknown'} on {session.deviceInfo?.platform || 'Unknown'}
+                        </p>
+                        <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+                          {formatDuration(session.duration)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        IP: {session.deviceInfo?.ipAddress || 'Unknown'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {session.loginAt ? new Date(session.loginAt).toLocaleDateString() : 'N/A'} - {session.logoutAt ? new Date(session.logoutAt).toLocaleDateString() : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <ClockIcon className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+            <p>No recent sessions found</p>
+          </div>
+        )}
+      </div>
+
+      {/* Session Limit Modal */}
+      <SessionLimitModal
+        isOpen={showSessionLimitModal}
+        onClose={() => setShowSessionLimitModal(false)}
+        activeSessions={activeSessions}
+        maxSessions={sessionInfo?.maxConcurrentSessions || 5}
+        onRemoveSession={handleRemoveSession}
+        onLogoutAll={handleLogoutAllDevices}
+      />
     </div>
   );
 
@@ -1015,6 +1337,7 @@ const AccountSettings = () => {
       {/* Tab Content */}
       <div className="mt-6">
         {activeTab === 'profile' && renderProfile()}
+        {activeTab === 'session' && renderSessionInfo()}
         {activeTab === 'security' && renderSecurity()}
         {activeTab === 'notifications' && renderNotifications()}
         {activeTab === 'platform' && renderPlatformSettings()}
@@ -1023,6 +1346,14 @@ const AccountSettings = () => {
         {activeTab === 'tickets' && renderTickets()}
         {activeTab === 'help' && renderHelp()}
       </div>
+
+      {/* Logout Modal */}
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={handleLogoutCancel}
+        onConfirm={handleLogoutConfirm}
+        loading={logoutLoading}
+      />
     </div>
   );
 };

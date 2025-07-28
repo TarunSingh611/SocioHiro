@@ -31,6 +31,9 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Unauthorized - redirect to login
       localStorage.removeItem('token');
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('sociohiro-user');
+      sessionStorage.clear();
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -45,20 +48,6 @@ export const getAnalyticsOrders = () => api.get('/analytics/orders');
 export const getAnalyticsProducts = () => api.get('/analytics/products');
 export const getAnalyticsEngagement = () => api.get('/analytics/engagement');
 export const getAnalyticsRevenue = () => api.get('/analytics/revenue');
-
-// Orders
-export const getOrders = () => api.get('/orders');
-export const getRecentOrders = (limit = 5) => api.get(`/orders/recent?limit=${limit}`);
-export const updateOrderStatus = (orderId, status) => api.put(`/orders/${orderId}/status`, { status });
-export const syncOrdersFromInstagram = () => api.get('/orders/sync/from-instagram');
-
-// Products
-export const getProducts = () => api.get('/products');
-export const getProduct = (id) => api.get(`/products/${id}`);
-export const createProduct = (data) => api.post('/products', data);
-export const updateProduct = (id, data) => api.put(`/products/${id}`, data);
-export const deleteProduct = (id) => api.delete(`/products/${id}`);
-export const syncProductToInstagram = (id) => api.post(`/products/${id}/sync`);
 
 // Instagram Accounts
 export const getInstagramAccounts = () => api.get('/instagram/accounts');
@@ -84,3 +73,17 @@ export const deleteAutomation = (id) => api.delete(`/automation/${id}`);
 // Settings
 export const getSettings = () => api.get('/settings');
 export const updateSettings = (data) => api.put('/settings', data); 
+
+// Authentication
+export const login = (email, password) => api.post('/auth/login', { email, password });
+export const register = (userData) => api.post('/auth/register', userData);
+export const getAuthStatus = () => api.get('/auth/status');
+export const logout = () => api.post('/auth/logout');
+export const logoutAllDevices = () => api.post('/auth/logout-all');
+export const getSessionStatus = () => api.get('/auth/session-status');
+export const getActiveSessions = () => api.get('/auth/active-sessions');
+export const getRecentSessions = () => api.get('/auth/recent-sessions');
+export const removeSession = (sessionId) => api.delete(`/auth/sessions/${sessionId}`);
+
+// Instagram OAuth
+export const InstagramLogin = () => api.get('/auth/instagram/login');

@@ -7,8 +7,7 @@ class ContentService {
       return response.data;
     } catch (error) {
       console.error('Error fetching content:', error);
-      // Return mock data as fallback
-      return this.getMockContent();
+      throw error;
     }
   }
 
@@ -18,8 +17,7 @@ class ContentService {
       return response.data;
     } catch (error) {
       console.error('Error fetching Instagram content:', error);
-      // Return mock data as fallback
-      return this.getMockContent();
+      throw error;
     }
   }
 
@@ -29,14 +27,7 @@ class ContentService {
       return response.data;
     } catch (error) {
       console.error('Error creating content:', error);
-      // Return mock created content
-      return {
-        id: Date.now(),
-        ...contentData,
-        stats: null,
-        publishedAt: null,
-        createdAt: new Date().toISOString()
-      };
+      throw error;
     }
   }
 
@@ -66,15 +57,7 @@ class ContentService {
       return response.data;
     } catch (error) {
       console.error('Error publishing content:', error);
-      // Return mock publish result
-      return {
-        success: true,
-        message: 'Content published successfully (mock)',
-        instagramData: {
-          id: `mock_${Date.now()}`,
-          permalink: 'https://instagram.com/mock-post'
-        }
-      };
+      throw error;
     }
   }
 
@@ -93,17 +76,7 @@ class ContentService {
       return response.data;
     } catch (error) {
       console.error('Error uploading media:', error);
-      // Return mock upload result
-      return {
-        message: 'Files uploaded successfully (mock)',
-        files: files.map(file => ({
-          filename: file.name,
-          originalname: file.name,
-          mimetype: file.type,
-          size: file.size,
-          url: URL.createObjectURL(file)
-        }))
-      };
+      throw error;
     }
   }
 
@@ -113,8 +86,7 @@ class ContentService {
       return response.data;
     } catch (error) {
       console.error('Error fetching content stats:', error);
-      // Return mock stats
-      return this.getMockStats();
+      throw error;
     }
   }
 
@@ -124,12 +96,7 @@ class ContentService {
       return response.data;
     } catch (error) {
       console.error('Error fetching media insights:', error);
-      // Return mock insights
-      return [
-        { name: 'impressions', value: Math.floor(Math.random() * 1000) },
-        { name: 'reach', value: Math.floor(Math.random() * 500) },
-        { name: 'engagement', value: Math.floor(Math.random() * 100) }
-      ];
+      throw error;
     }
   }
 
@@ -139,21 +106,7 @@ class ContentService {
       return response.data;
     } catch (error) {
       console.error('Error fetching comments:', error);
-      // Return mock comments
-      return [
-        {
-          id: '1',
-          text: 'Great post! 👍',
-          from: { username: 'user1' },
-          timestamp: new Date().toISOString()
-        },
-        {
-          id: '2',
-          text: 'Love this content!',
-          from: { username: 'user2' },
-          timestamp: new Date().toISOString()
-        }
-      ];
+      throw error;
     }
   }
 
@@ -165,11 +118,79 @@ class ContentService {
       return response.data;
     } catch (error) {
       console.error('Error replying to comment:', error);
-      // Return mock reply
-      return {
-        success: true,
-        message: 'Reply posted successfully (mock)'
-      };
+      throw error;
+    }
+  }
+
+  // New methods for associations and performance
+
+  async getContentByAssociations(associationType, associationId) {
+    try {
+      const response = await api.get(`/content/associations/${associationType}/${associationId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching content by associations:', error);
+      throw error;
+    }
+  }
+
+  async getHighPerformingContent(limit = 10) {
+    try {
+      const response = await api.get(`/content/performance/high?limit=${limit}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching high performing content:', error);
+      throw error;
+    }
+  }
+
+  async getUnderperformingContent(limit = 10) {
+    try {
+      const response = await api.get(`/content/performance/low?limit=${limit}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching underperforming content:', error);
+      throw error;
+    }
+  }
+
+  async updateContentAssociations(contentId, associations) {
+    try {
+      const response = await api.put(`/content/${contentId}/associations`, associations);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating content associations:', error);
+      throw error;
+    }
+  }
+
+  async addToWatchList(contentId, watchListName) {
+    try {
+      const response = await api.post(`/content/${contentId}/watchlist`, { watchListName });
+      return response.data;
+    } catch (error) {
+      console.error('Error adding content to watch list:', error);
+      throw error;
+    }
+  }
+
+  async removeFromWatchList(contentId, watchListName) {
+    try {
+      const response = await api.delete(`/content/${contentId}/watchlist/${watchListName}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error removing content from watch list:', error);
+      throw error;
+    }
+  }
+
+  async getContentPerformance(contentId) {
+    try {
+      const response = await api.get(`/content/${contentId}/performance`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching content performance:', error);
+      throw error;
     }
   }
 
@@ -180,73 +201,8 @@ class ContentService {
       return response.data;
     } catch (error) {
       console.error('API connection test failed:', error);
-      return { error: 'API not available' };
+      throw error;
     }
-  }
-
-  // Mock data for development (fallback)
-  getMockContent() {
-    return [
-      {
-        id: 1,
-        title: 'New Product Launch',
-        description: 'Exciting announcement about our latest product',
-        type: 'post',
-        content: 'We\'re thrilled to announce our newest product! 🎉 Check it out and let us know what you think!',
-        mediaUrls: ['https://example.com/image1.jpg'],
-        hashtags: ['#newproduct', '#launch', '#excited'],
-        location: 'New York, NY',
-        scheduledDate: '2024-01-20',
-        scheduledTime: '10:00',
-        isPublished: true,
-        stats: {
-          likes: 1250,
-          comments: 89,
-          shares: 45,
-          reach: 12500
-        },
-        publishedAt: '2024-01-15T10:00:00Z'
-      },
-      {
-        id: 2,
-        title: 'Behind the Scenes',
-        description: 'A glimpse into our creative process',
-        type: 'story',
-        content: 'Here\'s what goes into creating amazing content! 📸',
-        mediaUrls: ['https://example.com/video1.mp4'],
-        hashtags: ['#behindthescenes', '#creative', '#process'],
-        location: 'Los Angeles, CA',
-        scheduledDate: '2024-01-18',
-        scheduledTime: '14:30',
-        isPublished: false,
-        stats: null,
-        publishedAt: null
-      },
-      {
-        id: 3,
-        title: 'Customer Spotlight',
-        description: 'Highlighting our amazing customers',
-        type: 'carousel',
-        content: 'Meet some of our incredible customers! Their stories inspire us every day.',
-        mediaUrls: ['https://example.com/image2.jpg', 'https://example.com/image3.jpg'],
-        hashtags: ['#customerspotlight', '#community', '#inspiration'],
-        location: 'Chicago, IL',
-        scheduledDate: '2024-01-22',
-        scheduledTime: '09:00',
-        isPublished: false,
-        stats: null,
-        publishedAt: null
-      }
-    ];
-  }
-
-  getMockStats() {
-    return {
-      totalContent: 3,
-      published: 1,
-      scheduled: 2,
-      totalLikes: 1250
-    };
   }
 }
 

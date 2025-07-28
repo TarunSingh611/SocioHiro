@@ -1,8 +1,31 @@
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { BellIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import { BellIcon, UserCircleIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import LogoutModal from './LogoutModal';
 
 const Navbar = ({ user, onLogout }) => {
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
+
+  const handleLogout = () => {
+    setShowLogoutModal(true);
+  };
+
+  const handleLogoutConfirm = async () => {
+    setLogoutLoading(true);
+    try {
+      await onLogout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      setLogoutLoading(false);
+      setShowLogoutModal(false);
+    }
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutModal(false);
+  };
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -68,9 +91,12 @@ const Navbar = ({ user, onLogout }) => {
                         className={`${
                           active ? 'bg-gray-100' : ''
                         } block w-full text-left px-4 py-2 text-sm text-gray-700`}
-                        onClick={onLogout}
+                        onClick={handleLogout}
                       >
-                        Logout
+                        <div className="flex items-center">
+                          <ArrowRightOnRectangleIcon className="h-4 w-4 mr-2 text-red-600" />
+                          Logout
+                        </div>
                       </button>
                     )}
                   </Menu.Item>
@@ -80,6 +106,14 @@ const Navbar = ({ user, onLogout }) => {
           </div>
         </div>
       </div>
+
+      {/* Logout Modal */}
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={handleLogoutCancel}
+        onConfirm={handleLogoutConfirm}
+        loading={logoutLoading}
+      />
     </nav>
   );
 };

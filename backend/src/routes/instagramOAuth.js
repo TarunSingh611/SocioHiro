@@ -3,10 +3,13 @@ const axios = require('axios');
 const qs = require('qs');
 const router = express.Router();
 const cron = require('node-cron');
-const User = require('../models/User'); // Adjust path as needed
+const User = require('../models/User');
+const JWTService = require('../utils/jwt');
+const SessionService = require('../services/sessionService');
 
 // Initiate Instagram OAuth login
 router.get('/login', (req, res) => {
+    // Use basic Instagram Graph API scopes that don't require Facebook Page connection
     const instagramLoginUrl = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=532563143212029&redirect_uri=${process.env.INSTAGRAM_CALLBACK_URL}&response_type=code&scope=instagram_business_basic%2Cinstagram_business_manage_messages%2Cinstagram_business_manage_comments%2Cinstagram_business_content_publish%2Cinstagram_business_manage_insights`;
     
     res.redirect(instagramLoginUrl);
@@ -71,26 +74,25 @@ router.get('/login', (req, res) => {
         user.accessToken = access_token;
         user.username = userInfo.username;
         user.accountType = userInfo.account_type;
+        user.updatedAt = new Date();
       }
       
       await user.save();
       
-      // Store in session for immediate use
-      // DO NOT import useUserStore here
-      // Use req.session, JWT, or other backend auth methods
-      req.session.user = {
-        id: userInfo.id,
-        username: userInfo.username,
-        accountType: userInfo.account_type,
-        accessToken: access_token,
-        userId: user._id
-      };
+      // Generate session ID and add session
+      const sessionId = SessionService.generateSessionId();
+      const deviceInfo = SessionService.getDeviceInfo(req);
+      await SessionService.addSession(user._id, sessionId, deviceInfo);
+      
+      // Generate JWT token with session ID
+      const jwtToken = JWTService.generateToken(user, sessionId);
   
-      // Redirect to frontend with success
+      // Redirect to frontend with JWT token
       const userData = encodeURIComponent(JSON.stringify({
         success: true,
         user: userInfo,
         accessToken: access_token,
+        jwtToken: jwtToken,
         message: 'Successfully authenticated with Instagram'
       }));
   
@@ -112,11 +114,11 @@ router.get('/login', (req, res) => {
   // Get Instagram user info (protected route)
   router.get('/user', async (req, res) => {
     try {
-      if (!req.session.user) {
+      if (!req.user) {
         return res.status(401).json({ error: 'Not authenticated' });
       }
   
-      const { accessToken } = req.session.user;
+      const { accessToken } = req.user;
   
       // Get user's Instagram account info
       const userResponse = await axios.get(`https://graph.instagram.com/me`, {
@@ -188,46 +190,7 @@ router.get('/login', (req, res) => {
     }
   });
   
-  // Logout
-  router.get('/logout', (req, res) => {
-    req.session.user = null; // Clear session
-    res.json({ message: 'Logged out successfully' });
-  });
-
-// Runs every Monday at 4:00 AM
-cron.schedule('0 4 * * 1', async () => {
-  console.log('🔄 Starting scheduled Instagram token refresh...');
-
-  const fiftyDaysAgo = new Date(Date.now() - 50 * 24 * 60 * 60 * 1000);
-
-  // Find users whose token hasn't been refreshed in 50 days
-  const usersToRefresh = await User.find({
-    accessToken: { $exists: true, $ne: null },
-    lastTokenRefresh: { $lte: fiftyDaysAgo }
-  });
-
-  for (const user of usersToRefresh) {
-    try {
-      const response = await axios.get('https://graph.instagram.com/refresh_access_token', {
-        params: {
-          grant_type: 'ig_refresh_token',
-          access_token: user.accessToken
-        }
-      });
-
-      user.accessToken = response.data.access_token;
-      user.tokenExpiresIn = response.data.expires_in;
-      user.lastTokenRefresh = new Date();
-      await user.save();
-
-      console.log(`✅ Refreshed token for user ${user.username || user._id}`);
-    } catch (err) {
-      console.error(`❌ Failed to refresh token for user ${user.username || user._id}:`, err.response?.data || err.message);
-    }
-  }
-
-  console.log('🔄 Instagram token refresh job complete.');
-});
+  // Note: Logout is now handled in /api/auth/logout
 
 
 module.exports = router;
