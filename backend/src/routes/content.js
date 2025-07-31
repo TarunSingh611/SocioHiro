@@ -134,6 +134,11 @@ router.get('/', requireAuth, async (req, res) => {
             cachedData: await getCachedContent(req.user._id, { limit: parseInt(limit), source })
           });
         }
+        
+        // If it's a no Instagram account error, continue with cached data
+        if (syncError.message.includes('No Instagram account connected')) {
+          debug.log('User has no Instagram account - continuing with cached data');
+        }
       }
     }
 

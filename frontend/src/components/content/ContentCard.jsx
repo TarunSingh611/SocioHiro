@@ -274,6 +274,14 @@ const ContentCard = ({ content, onEdit, onDelete, onPublish }) => {
               </div>
             )}
           </div>
+
+          {
+            instagramId && (
+              <div className="flex items-center space-x-1">
+                <span className="text-xs text-gray-500">Instagram ID: {instagramId}</span>
+              </div>
+            )
+          }
           
           {permalink && (
             <a

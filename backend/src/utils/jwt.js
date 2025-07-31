@@ -10,7 +10,6 @@ class JWTService {
       userId: user._id,
       username: user.username,
       instagramId: user.instagramId,
-      facebookId: user.facebookId,
       accountType: user.accountType,
       sessionId: sessionId
     };

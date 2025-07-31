@@ -1,12 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const passport = require('passport');
 const path = require('path');
 const routes = require('./routes');
-
-// Import passport configuration
-require('./services/passport');
 
 const app = express();
 
@@ -27,10 +23,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
-// Initialize passport (without session)
-app.use(passport.initialize());
-
+  
 // Routes
 app.use('/api', (req, res, next)=>
   {

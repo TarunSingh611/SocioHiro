@@ -9,7 +9,8 @@ const SessionService = require('../services/sessionService');
 
 // Initiate Instagram OAuth login
 router.get('/login', (req, res) => {
-    // Use basic Instagram Graph API scopes that don't require Facebook Page connection
+    // Use Instagram Business API scopes (these are the NEW correct scopes)
+    // Instagram is transitioning TO these scopes, not away from them
     const instagramLoginUrl = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=532563143212029&redirect_uri=${process.env.INSTAGRAM_CALLBACK_URL}&response_type=code&scope=instagram_business_basic%2Cinstagram_business_manage_messages%2Cinstagram_business_manage_comments%2Cinstagram_business_content_publish%2Cinstagram_business_manage_insights`;
     
     res.redirect(instagramLoginUrl);
@@ -77,8 +78,8 @@ router.get('/login', (req, res) => {
       let user = await User.findOne({ instagramId: userInfo.id });
       
       if (!user) {
-        // Create new user
-        user = new User({
+        // Create new user - only set fields that have values
+        const userData = {
           instagramId: userInfo.id,
           username: userInfo.username,
           accountType: userInfo.account_type,
@@ -86,7 +87,9 @@ router.get('/login', (req, res) => {
           profilePic: null, // Instagram doesn't provide profile pic in this API
           tokenExpiresIn: expiresIn, // Use actual expiration from API
           lastTokenRefresh: new Date()
-        });
+        };
+        
+        user = new User(userData);
       } else {
         // Update existing user's tokens
         user.accessToken = longLivedToken; // Store the long-lived token

@@ -7,7 +7,7 @@ const automationRuleSchema = new mongoose.Schema({
   
   // Content association - can be specific posts or all content
   contentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Content' },
-  instagramMediaId: String, // Instagram media ID for specific posts
+  instagramId: String, // Instagram ID for specific posts
   applyToAllContent: { type: Boolean, default: false }, // If true, applies to all content
   
   // Multiple triggers support
@@ -64,7 +64,6 @@ const automationRuleSchema = new mongoose.Schema({
       min: Number, // days
       max: Number
     },
-    excludeKeywords: [String],
     requireVerifiedUser: { type: Boolean, default: false },
     excludeUsers: [String], // Array of user IDs to exclude
     includeUsers: [String], // Array of user IDs to include only
@@ -107,7 +106,7 @@ const automationRuleSchema = new mongoose.Schema({
 // Indexes for better performance
 automationRuleSchema.index({ userId: 1, isActive: 1 });
 automationRuleSchema.index({ contentId: 1 });
-automationRuleSchema.index({ instagramMediaId: 1 });
+automationRuleSchema.index({ instagramId: 1 });
 automationRuleSchema.index({ 'triggers.type': 1 });
 automationRuleSchema.index({ triggerType: 1 });
 automationRuleSchema.index({ keywords: 1 });
@@ -154,34 +153,22 @@ automationRuleSchema.methods.canExecute = function() {
 
 // Method to check if text matches keywords for a specific trigger
 automationRuleSchema.methods.matchesKeywords = function(text, triggerIndex = 0) {
-  // Support both new triggers array and legacy triggerType
-  let keywords = [];
-  let exactMatch = false;
-  let caseSensitive = false;
+  if (!this.triggers || !this.triggers[triggerIndex]) return false;
   
-  if (this.triggers && this.triggers[triggerIndex]) {
-    const trigger = this.triggers[triggerIndex];
-    keywords = trigger.keywords || [];
-    exactMatch = trigger.exactMatch || false;
-    caseSensitive = trigger.caseSensitive || false;
-  } else {
-    // Legacy support
-    keywords = this.keywords || [];
-    exactMatch = this.exactMatch || false;
-    caseSensitive = this.caseSensitive || false;
-  }
+  const trigger = this.triggers[triggerIndex];
+  if (!trigger.keywords || trigger.keywords.length === 0) return true; // No keywords means match all
   
-  if (!keywords || keywords.length === 0) return true;
+  const triggerText = trigger.caseSensitive ? text : text.toLowerCase();
   
-  const searchText = caseSensitive ? text : text.toLowerCase();
-  
-  for (const keyword of keywords) {
-    const searchKeyword = caseSensitive ? keyword : keyword.toLowerCase();
+  for (const keyword of trigger.keywords) {
+    const searchKeyword = trigger.caseSensitive ? keyword : keyword.toLowerCase();
     
-    if (exactMatch) {
-      if (searchText === searchKeyword) return true;
+    if (trigger.exactMatch) {
+      // Exact match - text must be exactly the keyword
+      if (triggerText === searchKeyword) return true;
     } else {
-      if (searchText.includes(searchKeyword)) return true;
+      // Partial match - keyword must be contained in text
+      if (triggerText.includes(searchKeyword)) return true;
     }
   }
   
@@ -222,10 +209,10 @@ automationRuleSchema.methods.getAllActions = function() {
 };
 
 // Method to check if automation applies to specific content
-automationRuleSchema.methods.appliesToContent = function(contentId, instagramMediaId) {
+automationRuleSchema.methods.appliesToContent = function(contentId, instagramId) {
   if (this.applyToAllContent) return true;
   if (this.contentId && this.contentId.toString() === contentId?.toString()) return true;
-  if (this.instagramMediaId && this.instagramMediaId === instagramMediaId) return true;
+  if (this.instagramId && this.instagramId === instagramId) return true;
   return false;
 };
 

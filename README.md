@@ -1,89 +1,213 @@
 # SocioHiro - Social Media Management Platform
 
-A modern, unified SaaS platform for managing and automating business activities across multiple social media platforms.
+A modern, full-stack web application for managing Instagram content, campaigns, and automation. Built with React, Node.js, and MongoDB, this platform provides comprehensive social media management capabilities with a beautiful, responsive UI.
 
-## 🚀 Features
+## 🚀 Live Demo
 
-### Core Functionality
-- **Multi-Platform Management**: Connect and manage Instagram, Facebook, WhatsApp, and more
-- **Automated Messaging**: Create rules for personalized DM responses
-- **Campaign Scheduling**: Schedule posts, stories, and campaigns across platforms
-- **Product Management**: Sync product catalogs and manage shoppable posts
-- **Order Management**: Track orders and sales from social channels
-- **Analytics Dashboard**: Comprehensive business metrics and insights
-- **Multi-Account Support**: Manage multiple social accounts and brands
-- **Real-Time Automation**: Webhooks and instant automation triggers
+**Frontend**: [Deployed on Vercel](https://sociohiro.vercel.app)  
+**Backend**: [Deployed on Railway/Render](https://sociohiro-backend.railway.app)
 
-### Technical Stack
-- **Frontend**: React.js with Tailwind CSS
-- **Backend**: Node.js with Express.js
-- **Database**: MongoDB with Mongoose
-- **Authentication**: Passport.js with OAuth
-- **API**: RESTful endpoints with proper error handling
+## ✨ Key Features
 
-## 🛠️ Installation
+### 📱 Content Management
+- **Instagram Content Sync**: Automatically sync and display Instagram posts, reels, and stories
+- **Content Analytics**: Track likes, comments, shares, reach, and engagement metrics
+- **Media Support**: Handle images, videos, and carousel posts
+- **Performance Tracking**: Monitor content performance with visual indicators
+
+### 🤖 Automation System
+- **Smart Automation Rules**: Create automated responses based on content triggers
+- **Campaign Management**: Schedule and manage marketing campaigns
+- **Real-time Monitoring**: Track automation performance and logs
+- **Multi-condition Triggers**: Set up complex automation workflows
+
+### 📊 Analytics Dashboard
+- **Engagement Metrics**: Comprehensive Instagram analytics
+- **Performance Insights**: Track content performance over time
+- **Campaign Analytics**: Monitor campaign effectiveness
+- **Real-time Data**: Live updates from Instagram API
+
+### 🔐 Authentication & Security
+- **Instagram OAuth**: Secure login with Instagram accounts
+- **Session Management**: Robust session handling
+- **API Security**: Protected endpoints with proper authentication
+- **Data Privacy**: Secure handling of user data
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **React 19** - Modern React with latest features
+- **Vite** - Fast build tool and development server
+- **Tailwind CSS** - Utility-first CSS framework
+- **Heroicons** - Beautiful SVG icons
+- **React Router** - Client-side routing
+- **Zustand** - Lightweight state management
+- **Axios** - HTTP client for API calls
+
+### Backend
+- **Node.js** - JavaScript runtime
+- **Express.js** - Web application framework
+- **MongoDB** - NoSQL database
+- **Mongoose** - MongoDB object modeling
+- **Passport.js** - Authentication middleware
+- **JWT** - JSON Web Tokens for authentication
+- **Multer** - File upload handling
+- **Node-cron** - Task scheduling
+
+### APIs & Services
+- **Instagram Graph API** - Content and analytics
+- **Instagram Webhooks** - Real-time updates
+- **RESTful APIs** - Clean API architecture
+
+## 📦 Installation & Setup
 
 ### Prerequisites
 - Node.js (v18 or higher)
-- MongoDB
+- MongoDB database
 - Instagram Developer Account
+- ngrok (for local webhook testing)
 
-### Backend Setup
+### Quick Start
+
+1. **Clone the repository**
 ```bash
-cd backend
-npm install
-cp .env.example .env
-# Configure your environment variables
-npm run dev
+git clone https://github.com/yourusername/sociohiro.git
+cd sociohiro
 ```
 
-### Frontend Setup
+2. **Install dependencies**
+```bash
+npm run install:all
+```
+
+3. **Environment Setup**
+
+Create `.env` files in both `backend/` and `frontend/` directories:
+
+**Backend (.env)**
+```env
+MONGODB_URI=your_mongodb_connection_string
+SESSION_SECRET=your_session_secret_key
+INSTAGRAM_CLIENT_ID=your_instagram_client_id
+INSTAGRAM_CLIENT_SECRET=your_instagram_client_secret
+INSTAGRAM_CALLBACK_URL=http://localhost:5000/api/auth/instagram/callback
+JWT_SECRET=your_jwt_secret_key
+NODE_ENV=development
+PORT=5000
+```
+
+**Frontend (.env)**
+```env
+VITE_API_URL=http://localhost:5000
+VITE_INSTAGRAM_CLIENT_ID=your_instagram_client_id
+```
+
+4. **Start the application**
+```bash
+# Development mode (both frontend and backend)
+npm run dev
+
+# Or start separately
+npm run dev:frontend  # Frontend only
+npm run dev:backend   # Backend only
+```
+
+5. **Access the application**
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:5000
+
+## 🚀 Deployment
+
+### Vercel Deployment (Frontend)
+
+1. **Connect to Vercel**
+```bash
+npm install -g vercel
+vercel login
+```
+
+2. **Deploy frontend**
 ```bash
 cd frontend
-npm install
-npm run dev
+vercel --prod
 ```
+
+3. **Configure environment variables in Vercel dashboard**
+- `VITE_API_URL` - Your backend API URL
+- `VITE_INSTAGRAM_CLIENT_ID` - Instagram Client ID
+
+### Backend Deployment (Railway/Render)
+
+1. **Deploy to Railway**
+```bash
+# Connect your GitHub repository
+# Railway will auto-detect Node.js and deploy
+```
+
+2. **Configure environment variables**
+- Add all backend environment variables
+- Set `NODE_ENV=production`
+
+3. **Update frontend API URL**
+- Update `VITE_API_URL` in Vercel to point to your backend URL
 
 ## 📁 Project Structure
 
 ```
 SocioHiro/
-├── backend/
+├── frontend/                 # React frontend application
 │   ├── src/
-│   │   ├── controllers/
-│   │   ├── models/
-│   │   ├── routes/
-│   │   ├── services/
-│   │   └── middleware/
+│   │   ├── components/      # Reusable UI components
+│   │   │   ├── content/     # Content management components
+│   │   │   └── automation/  # Automation components
+│   │   ├── pages/           # Page components
+│   │   ├── services/        # API services
+│   │   └── utils/           # Utility functions
+│   ├── public/              # Static assets
 │   └── package.json
-├── frontend/
+├── backend/                  # Node.js backend application
 │   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   └── services/
+│   │   ├── controllers/     # Route controllers
+│   │   ├── models/          # MongoDB models
+│   │   ├── routes/          # API routes
+│   │   ├── services/        # Business logic
+│   │   ├── middleware/      # Custom middleware
+│   │   └── utils/           # Utility functions
+│   ├── testing/             # Test scripts
 │   └── package.json
+├── docs/                    # Documentation
 └── README.md
 ```
 
 ## 🔧 Configuration
 
-### Environment Variables
-Create a `.env` file in the backend directory:
+### Instagram API Setup
 
-```env
-MONGODB_URI=your_mongodb_connection_string
-SESSION_SECRET=your_session_secret
-INSTAGRAM_CLIENT_ID=your_instagram_client_id
-INSTAGRAM_CLIENT_SECRET=your_instagram_client_secret
-INSTAGRAM_CALLBACK_URL=http://localhost:5000/api/auth/instagram/callback
-```
+1. **Create Instagram App**
+   - Go to [Facebook Developers](https://developers.facebook.com)
+   - Create a new app
+   - Add Instagram Basic Display product
+   - Configure OAuth redirect URIs
 
-## 🚀 Usage
+2. **Get API Credentials**
+   - Copy Client ID and Client Secret
+   - Add to environment variables
 
-1. **Start the backend server**: `npm run dev` (in backend directory)
-2. **Start the frontend**: `npm run dev` (in frontend directory)
-3. **Access the application**: http://localhost:5173
-4. **Connect your Instagram account** and start managing your social media presence
+3. **Configure Webhooks**
+   - Set up webhook endpoints for real-time updates
+   - Verify webhook signature
+
+### Database Setup
+
+1. **MongoDB Atlas** (Recommended)
+   - Create free cluster
+   - Get connection string
+   - Add to environment variables
+
+2. **Local MongoDB**
+   - Install MongoDB locally
+   - Create database
+   - Configure connection
 
 ## 📊 API Endpoints
 
@@ -91,50 +215,110 @@ INSTAGRAM_CALLBACK_URL=http://localhost:5000/api/auth/instagram/callback
 - `GET /api/auth/instagram` - Instagram OAuth login
 - `GET /api/auth/instagram/callback` - OAuth callback
 - `GET /api/auth/logout` - Logout
-- `GET /api/auth/status` - Check authentication status
+- `GET /api/auth/status` - Check auth status
+
+### Content Management
+- `GET /api/content` - List all content
+- `POST /api/content` - Create content
+- `PUT /api/content/:id` - Update content
+- `DELETE /api/content/:id` - Delete content
+- `GET /api/content/:id/analytics` - Get content analytics
+
+### Automation
+- `GET /api/automation` - List automations
+- `POST /api/automation` - Create automation
+- `PUT /api/automation/:id` - Update automation
+- `DELETE /api/automation/:id` - Delete automation
+- `GET /api/automation/:id/logs` - Get automation logs
 
 ### Campaigns
-- `GET /api/campaigns` - List all campaigns
-- `POST /api/campaigns` - Create new campaign
+- `GET /api/campaigns` - List campaigns
+- `POST /api/campaigns` - Create campaign
 - `PUT /api/campaigns/:id` - Update campaign
 - `DELETE /api/campaigns/:id` - Delete campaign
-- `POST /api/campaigns/:id/publish` - Publish to Instagram
 
-### Products
-- `GET /api/products` - List all products
-- `POST /api/products` - Create new product
-- `PUT /api/products/:id` - Update product
-- `DELETE /api/products/:id` - Delete product
-- `POST /api/products/:id/sync` - Sync to Instagram
+## 🎯 Key Features Demo
 
-### Orders
-- `GET /api/orders` - List all orders
-- `POST /api/orders` - Create new order
-- `PUT /api/orders/:id` - Update order
-- `DELETE /api/orders/:id` - Delete order
+### Content Management
+- **Flip View**: Toggle between Instagram view and app data view
+- **Performance Tracking**: Visual indicators for content performance
+- **Media Support**: Handle images, videos, and carousel posts
+- **Analytics**: Real-time engagement metrics
 
-### Analytics
-- `GET /api/analytics/summary` - Dashboard summary
-- `GET /api/analytics/orders` - Order analytics
-- `GET /api/analytics/products` - Product analytics
-- `GET /api/analytics/engagement` - Engagement analytics
+### Automation System
+- **Rule Creation**: Build complex automation rules
+- **Trigger Conditions**: Set up multiple trigger conditions
+- **Response Actions**: Configure automated responses
+- **Performance Monitoring**: Track automation effectiveness
+
+### Analytics Dashboard
+- **Engagement Metrics**: Comprehensive Instagram analytics
+- **Performance Insights**: Track content performance over time
+- **Campaign Analytics**: Monitor campaign effectiveness
+- **Real-time Data**: Live updates from Instagram API
+
+## 🔍 Development
+
+### Available Scripts
+
+```bash
+# Development
+npm run dev              # Start both frontend and backend
+npm run dev:frontend     # Start frontend only
+npm run dev:backend      # Start backend only
+
+# Building
+npm run build            # Build frontend for production
+npm run start            # Start production server
+
+# Testing
+npm run test             # Run backend tests
+npm run lint             # Lint frontend code
+
+# Utilities
+npm run clean            # Clean node_modules
+npm run install:all      # Install all dependencies
+```
+
+### Debugging
+
+The project includes comprehensive debugging tools:
+- Debug scripts for backend development
+- Error logging and monitoring
+- Webhook testing utilities
+- API testing scripts
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## 📄 License
+## 📝 License
 
-This project is licensed under the ISC License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🆘 Support
 
-For support, email support@sociohiro.com or create an issue in this repository.
+- **Documentation**: Check the `/docs` folder for detailed guides
+- **Issues**: Report bugs via GitHub Issues
+- **Discussions**: Use GitHub Discussions for questions
+- **Email**: support@instagramstore.com
+
+## 🚀 Roadmap
+
+- [ ] Multi-platform support (Facebook, Twitter, TikTok)
+- [ ] Advanced analytics and reporting
+- [ ] AI-powered content suggestions
+- [ ] Team collaboration features
+- [ ] Mobile app development
+- [ ] Advanced automation workflows
+- [ ] Integration with e-commerce platforms
 
 ---
 
-**SocioHiro** - Empowering businesses to manage their social media presence efficiently and effectively. 
+**SocioHiro** - Empowering businesses to manage their Instagram presence efficiently and effectively. Built with modern technologies and best practices for scalability and maintainability.
+
+*Ready for production deployment and team collaboration.* 

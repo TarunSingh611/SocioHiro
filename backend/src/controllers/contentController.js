@@ -162,32 +162,25 @@ const getContentForAutomation = async (req, res) => {
   try {
     const userId = req.user._id;
     
-    // For now, return mock data like the automation controller
-    // This ensures the frontend works while we figure out the content sync
-    const content = [
-      {
-        _id: 'content_1',
-        instagramId: '17841405793087218',
-        caption: 'Sample post 1',
-        mediaType: 'IMAGE',
-        instagramMediaId: '17841405793087218',
-        permalink: 'https://instagram.com/p/sample1',
-        automations: [],
-        source: 'instagram'
-      },
-      {
-        _id: 'content_2',
-        instagramId: '17841405793087219',
-        caption: 'Sample post 2',
-        mediaType: 'VIDEO',
-        instagramMediaId: '17841405793087219',
-        permalink: 'https://instagram.com/p/sample2',
-        automations: [],
-        source: 'instagram'
-      }
-    ];
+    // Get real content from the database
+    const Content = require('../models/Content');
+    const content = await Content.find({ 
+      userId: userId,
+      source: 'instagram' // Only Instagram content for automation
+    }).select('_id instagramId instagramMediaType permalink source').lean();
     
-    res.json(content);
+    // Transform to match expected structure
+    const transformedContent = content.map(item => ({
+      _id: item._id,
+      instagramId: item.instagramId,
+      caption: `Instagram Post (${item.instagramId})`, // Generate caption from ID
+      mediaType: item.instagramMediaType || 'IMAGE',
+      permalink: item.permalink,
+      source: item.source || 'instagram',
+      automations: []
+    }));
+    
+    res.json(transformedContent);
   } catch (error) {
     console.error('Error getting content for automation:', error);
     res.status(500).json({ error: error.message });

@@ -16,7 +16,14 @@ class ContentSyncService {
     try {
       const user = await User.findById(userId);
       if (!user || !user.accessToken) {
-        throw new Error('User not found or no Instagram access token');
+        // This is a normal scenario - user hasn't connected Instagram yet
+        console.log(`ℹ️ User ${userId} has no Instagram access token - skipping sync`);
+        return { 
+          success: true, 
+          syncedCount: 0, 
+          message: 'No Instagram account connected',
+          requiresInstagramAuth: true
+        };
       }
 
       // Validate token before attempting sync
@@ -124,7 +131,13 @@ class ContentSyncService {
     try {
       const user = await User.findById(userId);
       if (!user || !user.accessToken) {
-        throw new Error('User not found or no Instagram access token');
+        console.log(`ℹ️ User ${userId} has no Instagram access token - skipping sync`);
+        return { 
+          success: true, 
+          syncedCount: 0, 
+          message: 'No Instagram account connected',
+          requiresInstagramAuth: true
+        };
       }
 
       const instagramApi = new InstagramApiService(user.accessToken);
@@ -601,7 +614,13 @@ class ContentSyncService {
     try {
       const user = await User.findById(userId);
       if (!user || !user.accessToken) {
-        throw new Error('User not found or no Instagram access token');
+        console.log(`ℹ️ User ${userId} has no Instagram access token - skipping force sync`);
+        return { 
+          success: true, 
+          syncedCount: 0, 
+          message: 'No Instagram account connected',
+          requiresInstagramAuth: true
+        };
       }
 
       console.log(`🔄 Force sync triggered for user ${userId}`);

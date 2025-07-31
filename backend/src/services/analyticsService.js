@@ -1,290 +1,478 @@
-const InstagramApiService = require('./instagramApi');
+const Content = require('../models/Content');
+const User = require('../models/User');
+const AutomationRule = require('../models/AutomationRule');
+const Campaign = require('../models/Campaign');
 const Order = require('../models/Order');
-const Product = require('../models/Product');
 
 class AnalyticsService {
   constructor(user) {
     this.user = user;
-    this.instagramApi = new InstagramApiService(user.accessToken);
   }
 
-  // Get comprehensive analytics dashboard data
+  // Get comprehensive dashboard analytics
   async getDashboardAnalytics() {
     try {
       const [
-        orderAnalytics,
-        productAnalytics,
-        engagementAnalytics,
-        revenueAnalytics
+        contentStats,
+        accountStats,
+        automationStats,
+        campaignStats,
+        recentActivity
       ] = await Promise.all([
-        this.getOrderAnalytics(),
-        this.getProductAnalytics(),
-        this.getEngagementAnalytics(),
-        this.getRevenueAnalytics()
+        this.getContentAnalytics(),
+        this.getAccountAnalytics(),
+        this.getAutomationAnalytics(),
+        this.getCampaignAnalytics(),
+        this.getRecentActivity()
       ]);
 
       return {
-        orders: orderAnalytics,
-        products: productAnalytics,
-        engagement: engagementAnalytics,
-        revenue: revenueAnalytics,
-        summary: this.generateSummary(orderAnalytics, productAnalytics, engagementAnalytics, revenueAnalytics)
+        summary: {
+          totalPosts: contentStats.totalPosts,
+          totalEngagement: contentStats.totalEngagement,
+          hasInstagramConnected: this.user.hasInstagramConnected(),
+          activeAutomations: automationStats.activeAutomations,
+          activeCampaigns: campaignStats.activeCampaigns,
+          totalRevenue: contentStats.totalRevenue || 0
+        },
+        content: contentStats,
+        account: accountStats,
+        automation: automationStats,
+        campaigns: campaignStats,
+        recentActivity
       };
     } catch (error) {
-      throw new Error(`Failed to get dashboard analytics: ${error.message}`);
+      console.error('Error getting dashboard analytics:', error);
+      throw error;
     }
   }
 
-  // Get order analytics
-  async getOrderAnalytics() {
+  // Get content analytics
+  async getContentAnalytics() {
     try {
-      const orders = await Order.find({ userId: this.user._id });
+      const contents = await Content.find({ userId: this.user._id });
       
-      const analytics = {
-        totalOrders: orders.length,
-        totalRevenue: orders.reduce((sum, order) => sum + order.total, 0),
-        averageOrderValue: orders.length > 0 ? orders.reduce((sum, order) => sum + order.total, 0) / orders.length : 0,
-        statusBreakdown: {},
-        monthlyOrders: {},
-        monthlyRevenue: {}
-      };
-
-      // Calculate status breakdown
-      orders.forEach(order => {
-        analytics.statusBreakdown[order.status] = (analytics.statusBreakdown[order.status] || 0) + 1;
-      });
-
-      // Calculate monthly data
-      orders.forEach(order => {
-        const month = order.createdAt.toISOString().slice(0, 7); // YYYY-MM
-        analytics.monthlyOrders[month] = (analytics.monthlyOrders[month] || 0) + 1;
-        analytics.monthlyRevenue[month] = (analytics.monthlyRevenue[month] || 0) + order.total;
-      });
-
-      return analytics;
-    } catch (error) {
-      throw new Error(`Failed to get order analytics: ${error.message}`);
-    }
-  }
-
-  // Get product analytics
-  async getProductAnalytics() {
-    try {
-      const products = await Product.find({ userId: this.user._id });
-      const orders = await Order.find({ userId: this.user._id }).populate('products.productId');
-
-      const analytics = {
-        totalProducts: products.length,
-        activeProducts: products.filter(p => p.stock > 0).length,
-        lowStockProducts: products.filter(p => p.stock > 0 && p.stock <= 5).length,
-        outOfStockProducts: products.filter(p => p.stock === 0).length,
-        topSellingProducts: [],
-        categoryBreakdown: {},
-        priceRangeBreakdown: {}
-      };
-
-      // Calculate top selling products
-      const productSales = {};
-      orders.forEach(order => {
-        order.products.forEach(product => {
-          const productId = product.productId.toString();
-          if (!productSales[productId]) {
-            productSales[productId] = { quantity: 0, revenue: 0 };
-          }
-          productSales[productId].quantity += product.quantity;
-          productSales[productId].revenue += product.price * product.quantity;
-        });
-      });
-
-      // Get top selling products
-      const topProducts = Object.entries(productSales)
-        .sort(([,a], [,b]) => b.quantity - a.quantity)
-        .slice(0, 10);
-
-      for (const [productId, sales] of topProducts) {
-        const product = products.find(p => p._id.toString() === productId);
-        if (product) {
-          analytics.topSellingProducts.push({
-            product,
-            sales: sales.quantity,
-            revenue: sales.revenue
-          });
-        }
-      }
-
-      // Calculate category breakdown
-      products.forEach(product => {
-        const category = product.category || 'Uncategorized';
-        analytics.categoryBreakdown[category] = (analytics.categoryBreakdown[category] || 0) + 1;
-      });
-
-      // Calculate price range breakdown
-      products.forEach(product => {
-        let priceRange = 'Unknown';
-        if (product.price <= 10) priceRange = '$0-$10';
-        else if (product.price <= 25) priceRange = '$11-$25';
-        else if (product.price <= 50) priceRange = '$26-$50';
-        else if (product.price <= 100) priceRange = '$51-$100';
-        else priceRange = '$100+';
-        
-        analytics.priceRangeBreakdown[priceRange] = (analytics.priceRangeBreakdown[priceRange] || 0) + 1;
-      });
-
-      return analytics;
-    } catch (error) {
-      throw new Error(`Failed to get product analytics: ${error.message}`);
-    }
-  }
-
-  // Get engagement analytics (Instagram posts, stories, etc.)
-  async getEngagementAnalytics() {
-    try {
-      // Note: This would require Instagram Graph API permissions for insights
-      // For now, we'll return mock data structure
-      const analytics = {
-        totalPosts: 0,
-        totalStories: 0,
-        totalReels: 0,
+      const stats = {
+        totalPosts: contents.length,
         totalLikes: 0,
         totalComments: 0,
         totalShares: 0,
-        averageEngagementRate: 0,
-        topPerformingContent: [],
-        engagementTrend: {},
-        contentTypeBreakdown: {
-          posts: 0,
-          stories: 0,
-          reels: 0
-        }
+        totalReach: 0,
+        totalImpressions: 0,
+        totalSaved: 0,
+        totalEngagement: 0,
+        avgEngagementRate: 0,
+        posts: 0,
+        reels: 0,
+        stories: 0,
+        highPerforming: 0,
+        underperforming: 0,
+        totalRevenue: 0
       };
 
-      // Mock data for demonstration
-      analytics.totalPosts = 25;
-      analytics.totalStories = 15;
-      analytics.totalReels = 8;
-      analytics.totalLikes = 1250;
-      analytics.totalComments = 89;
-      analytics.totalShares = 45;
-      analytics.averageEngagementRate = 3.2;
+      contents.forEach(content => {
+        const insights = content.insights || {};
+        const stats_data = content.stats || {};
+        
+        stats.totalLikes += (insights.likes || stats_data.likes || 0);
+        stats.totalComments += (insights.comments || stats_data.comments || 0);
+        stats.totalShares += (stats_data.shares || 0);
+        stats.totalReach += (insights.reach || stats_data.reach || 0);
+        stats.totalImpressions += (insights.impressions || 0);
+        stats.totalSaved += (insights.saved || 0);
+        
+        // Count content types
+        if (content.type === 'post' || content.instagramMediaType === 'IMAGE') {
+          stats.posts++;
+        } else if (content.type === 'reel' || content.instagramMediaType === 'VIDEO') {
+          stats.reels++;
+        } else if (content.type === 'story') {
+          stats.stories++;
+        }
 
-      return analytics;
+        // Performance classification
+        const performance = content.performance || {};
+        if (performance.isHighPerforming) {
+          stats.highPerforming++;
+        } else if (performance.isUnderperforming) {
+          stats.underperforming++;
+        }
+
+        // Revenue calculation (if applicable)
+        if (content.revenue) {
+          stats.totalRevenue += content.revenue;
+        }
+      });
+
+      stats.totalEngagement = stats.totalLikes + stats.totalComments + stats.totalShares;
+      
+      if (stats.totalPosts > 0) {
+        stats.avgEngagementRate = (stats.totalEngagement / stats.totalPosts) * 100;
+      }
+
+      return stats;
     } catch (error) {
-      throw new Error(`Failed to get engagement analytics: ${error.message}`);
+      console.error('Error getting content analytics:', error);
+      throw error;
     }
   }
 
-  // Get revenue analytics
-  async getRevenueAnalytics() {
+  // Get account analytics (single account)
+  async getAccountAnalytics() {
     try {
-      const orders = await Order.find({ userId: this.user._id });
-      
-      const analytics = {
-        totalRevenue: orders.reduce((sum, order) => sum + order.total, 0),
-        averageOrderValue: orders.length > 0 ? orders.reduce((sum, order) => sum + order.total, 0) / orders.length : 0,
-        revenueGrowth: 0,
-        monthlyRevenue: {},
-        revenueByProduct: {},
-        revenueByStatus: {}
+      const stats = {
+        hasInstagramConnected: this.user.hasInstagramConnected(),
+        accountType: this.user.instagramAccountType,
+        username: this.user.username,
+        connectedAt: this.user.createdAt,
+        lastTokenRefresh: this.user.lastTokenRefresh,
+        tokenExpiresAt: this.user.tokenExpiresAt
       };
 
-      // Calculate monthly revenue
-      orders.forEach(order => {
-        const month = order.createdAt.toISOString().slice(0, 7);
-        analytics.monthlyRevenue[month] = (analytics.monthlyRevenue[month] || 0) + order.total;
-      });
+      return stats;
+    } catch (error) {
+      console.error('Error getting account analytics:', error);
+      throw error;
+    }
+  }
 
-      // Calculate revenue by status
-      orders.forEach(order => {
-        analytics.revenueByStatus[order.status] = (analytics.revenueByStatus[order.status] || 0) + order.total;
-      });
+  // Get automation analytics
+  async getAutomationAnalytics() {
+    try {
+      const automations = await AutomationRule.find({ userId: this.user._id });
+      
+      const stats = {
+        totalAutomations: automations.length,
+        activeAutomations: 0,
+        inactiveAutomations: 0,
+        totalExecutions: 0,
+        successfulExecutions: 0,
+        failedExecutions: 0,
+        avgExecutionTime: 0,
+        topTriggers: {}
+      };
 
-      // Calculate revenue by product
-      orders.forEach(order => {
-        order.products.forEach(product => {
-          const productId = product.productId.toString();
-          analytics.revenueByProduct[productId] = (analytics.revenueByProduct[productId] || 0) + (product.price * product.quantity);
-        });
-      });
-
-      // Calculate revenue growth (comparing current month to previous month)
-      const months = Object.keys(analytics.monthlyRevenue).sort();
-      if (months.length >= 2) {
-        const currentMonth = months[months.length - 1];
-        const previousMonth = months[months.length - 2];
-        const currentRevenue = analytics.monthlyRevenue[currentMonth];
-        const previousRevenue = analytics.monthlyRevenue[previousMonth];
-        
-        if (previousRevenue > 0) {
-          analytics.revenueGrowth = ((currentRevenue - previousRevenue) / previousRevenue) * 100;
+      automations.forEach(automation => {
+        if (automation.isActive) {
+          stats.activeAutomations++;
+        } else {
+          stats.inactiveAutomations++;
         }
+
+        stats.totalExecutions += (automation.executionCount || 0);
+        
+        // Count trigger types
+        const triggerType = automation.triggerType || 'unknown';
+        stats.topTriggers[triggerType] = (stats.topTriggers[triggerType] || 0) + 1;
+      });
+
+      return stats;
+    } catch (error) {
+      console.error('Error getting automation analytics:', error);
+      throw error;
+    }
+  }
+
+  // Get campaign analytics
+  async getCampaignAnalytics() {
+    try {
+      const campaigns = await Campaign.find({ userId: this.user._id });
+      
+      const stats = {
+        totalCampaigns: campaigns.length,
+        activeCampaigns: 0,
+        pausedCampaigns: 0,
+        scheduledCampaigns: 0,
+        completedCampaigns: 0,
+        totalReach: 0,
+        totalEngagement: 0,
+        avgEngagementRate: 0
+      };
+
+      campaigns.forEach(campaign => {
+        switch (campaign.status) {
+          case 'active':
+            stats.activeCampaigns++;
+            break;
+          case 'paused':
+            stats.pausedCampaigns++;
+            break;
+          case 'scheduled':
+            stats.scheduledCampaigns++;
+            break;
+          case 'completed':
+            stats.completedCampaigns++;
+            break;
+        }
+
+        if (campaign.analytics) {
+          stats.totalReach += (campaign.analytics.reach || 0);
+          stats.totalEngagement += (campaign.analytics.engagement || 0);
+        }
+      });
+
+      if (stats.totalCampaigns > 0) {
+        stats.avgEngagementRate = (stats.totalEngagement / stats.totalCampaigns);
       }
+
+      return stats;
+    } catch (error) {
+      console.error('Error getting campaign analytics:', error);
+      throw error;
+    }
+  }
+
+  // Get recent activity
+  async getRecentActivity() {
+    try {
+      const recentContent = await Content.find({ userId: this.user._id })
+        .sort({ createdAt: -1 })
+        .limit(10);
+
+      const recentAutomations = await AutomationRule.find({ userId: this.user._id })
+        .sort({ lastExecuted: -1 })
+        .limit(5);
+
+      const recentCampaigns = await Campaign.find({ userId: this.user._id })
+        .sort({ createdAt: -1 })
+        .limit(5);
+
+      return {
+        content: recentContent.map(content => ({
+          id: content._id,
+          type: 'content',
+          title: content.title || 'Untitled Post',
+          action: 'created',
+          timestamp: content.createdAt,
+          metadata: {
+            type: content.type,
+            engagement: content.insights?.likes || 0
+          }
+        })),
+        automations: recentAutomations.map(automation => ({
+          id: automation._id,
+          type: 'automation',
+          title: automation.name,
+          action: automation.lastExecuted ? 'executed' : 'created',
+          timestamp: automation.lastExecuted || automation.createdAt,
+          metadata: {
+            triggerType: automation.triggerType,
+            executionCount: automation.executionCount
+          }
+        })),
+        campaigns: recentCampaigns.map(campaign => ({
+          id: campaign._id,
+          type: 'campaign',
+          title: campaign.name,
+          action: campaign.status === 'active' ? 'activated' : 'created',
+          timestamp: campaign.updatedAt || campaign.createdAt,
+          metadata: {
+            status: campaign.status,
+            type: campaign.type
+          }
+        }))
+      };
+    } catch (error) {
+      console.error('Error getting recent activity:', error);
+      throw error;
+    }
+  }
+
+  // Get time-based analytics
+  async getTimeBasedAnalytics(timeframe = 'monthly') {
+    try {
+      const now = new Date();
+      let startDate;
+
+      switch (timeframe) {
+        case 'daily':
+          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case 'weekly':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'monthly':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case 'yearly':
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      }
+
+      const contents = await Content.find({
+        userId: this.user._id,
+        createdAt: { $gte: startDate }
+      });
+
+      const analytics = {
+        timeframe,
+        totalPosts: contents.length,
+        engagement: {
+          likes: 0,
+          comments: 0,
+          shares: 0,
+          total: 0
+        },
+        reach: 0,
+        impressions: 0,
+        performance: {
+          highPerforming: 0,
+          underperforming: 0,
+          average: 0
+        }
+      };
+
+      contents.forEach(content => {
+        const insights = content.insights || {};
+        const stats = content.stats || {};
+        
+        analytics.engagement.likes += (insights.likes || stats.likes || 0);
+        analytics.engagement.comments += (insights.comments || stats.comments || 0);
+        analytics.engagement.shares += (stats.shares || 0);
+        analytics.reach += (insights.reach || stats.reach || 0);
+        analytics.impressions += (insights.impressions || 0);
+
+        const performance = content.performance || {};
+        if (performance.isHighPerforming) {
+          analytics.performance.highPerforming++;
+        } else if (performance.isUnderperforming) {
+          analytics.performance.underperforming++;
+        } else {
+          analytics.performance.average++;
+        }
+      });
+
+      analytics.engagement.total = analytics.engagement.likes + analytics.engagement.comments + analytics.engagement.shares;
 
       return analytics;
     } catch (error) {
-      throw new Error(`Failed to get revenue analytics: ${error.message}`);
+      console.error('Error getting time-based analytics:', error);
+      throw error;
+    }
+  }
+
+  // Get engagement analytics
+  async getEngagementAnalytics() {
+    try {
+      const contents = await Content.find({ userId: this.user._id });
+      
+      const analytics = {
+        totalEngagement: 0,
+        avgEngagementRate: 0,
+        engagementByType: {
+          likes: 0,
+          comments: 0,
+          shares: 0,
+          saved: 0
+        },
+        topPerformingPosts: [],
+        engagementTrend: []
+      };
+
+      contents.forEach(content => {
+        const insights = content.insights || {};
+        const stats = content.stats || {};
+        
+        const likes = insights.likes || stats.likes || 0;
+        const comments = insights.comments || stats.comments || 0;
+        const shares = stats.shares || 0;
+        const saved = insights.saved || 0;
+        
+        analytics.engagementByType.likes += likes;
+        analytics.engagementByType.comments += comments;
+        analytics.engagementByType.shares += shares;
+        analytics.engagementByType.saved += saved;
+        
+        const totalEngagement = likes + comments + shares;
+        analytics.totalEngagement += totalEngagement;
+
+        // Track top performing posts
+        analytics.topPerformingPosts.push({
+          id: content._id,
+          title: content.title || 'Untitled',
+          engagement: totalEngagement,
+          likes,
+          comments,
+          shares,
+          createdAt: content.createdAt
+        });
+      });
+
+      if (contents.length > 0) {
+        analytics.avgEngagementRate = analytics.totalEngagement / contents.length;
+      }
+
+      // Sort top performing posts
+      analytics.topPerformingPosts.sort((a, b) => b.engagement - a.engagement);
+      analytics.topPerformingPosts = analytics.topPerformingPosts.slice(0, 10);
+
+      return analytics;
+    } catch (error) {
+      console.error('Error getting engagement analytics:', error);
+      throw error;
+    }
+  }
+
+  // Get revenue analytics (if applicable)
+  async getRevenueAnalytics() {
+    try {
+      const contents = await Content.find({ userId: this.user._id });
+      const orders = await Order.find({ userId: this.user._id });
+      
+      const analytics = {
+        totalRevenue: 0,
+        totalOrders: orders.length,
+        avgOrderValue: 0,
+        revenueByContent: {},
+        topRevenuePosts: []
+      };
+
+      contents.forEach(content => {
+        if (content.revenue) {
+          analytics.totalRevenue += content.revenue;
+          
+          analytics.revenueByContent[content.type] = (analytics.revenueByContent[content.type] || 0) + content.revenue;
+          
+          analytics.topRevenuePosts.push({
+            id: content._id,
+            title: content.title || 'Untitled',
+            revenue: content.revenue,
+            type: content.type,
+            createdAt: content.createdAt
+          });
+        }
+      });
+
+      if (orders.length > 0) {
+        const totalOrderValue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+        analytics.avgOrderValue = totalOrderValue / orders.length;
+      }
+
+      // Sort top revenue posts
+      analytics.topRevenuePosts.sort((a, b) => b.revenue - a.revenue);
+      analytics.topRevenuePosts = analytics.topRevenuePosts.slice(0, 10);
+
+      return analytics;
+    } catch (error) {
+      console.error('Error getting revenue analytics:', error);
+      throw error;
     }
   }
 
   // Generate summary metrics
   generateSummary(orderAnalytics, productAnalytics, engagementAnalytics, revenueAnalytics) {
     return {
-      totalRevenue: revenueAnalytics.totalRevenue,
-      totalOrders: orderAnalytics.totalOrders,
-      totalProducts: productAnalytics.totalProducts,
-      averageOrderValue: orderAnalytics.averageOrderValue,
-      engagementRate: engagementAnalytics.averageEngagementRate,
-      revenueGrowth: revenueAnalytics.revenueGrowth
+      totalRevenue: revenueAnalytics.totalRevenue || 0,
+      totalOrders: orderAnalytics.totalOrders || 0,
+      totalEngagement: engagementAnalytics.totalEngagement || 0,
+      avgEngagementRate: engagementAnalytics.avgEngagementRate || 0,
+      totalProducts: productAnalytics.totalProducts || 0,
+      topPerformingContent: engagementAnalytics.topPerformingPosts?.slice(0, 5) || [],
+      revenueTrend: revenueAnalytics.revenueByContent || {},
+      hasInstagramConnected: this.user.hasInstagramConnected()
     };
-  }
-
-  // Get time-based analytics (daily, weekly, monthly)
-  async getTimeBasedAnalytics(timeframe = 'monthly') {
-    try {
-      const orders = await Order.find({ userId: this.user._id });
-      const analytics = {};
-
-      orders.forEach(order => {
-        let timeKey;
-        const date = new Date(order.createdAt);
-        
-        switch (timeframe) {
-          case 'daily':
-            timeKey = date.toISOString().slice(0, 10); // YYYY-MM-DD
-            break;
-          case 'weekly':
-            const weekStart = new Date(date);
-            weekStart.setDate(date.getDate() - date.getDay());
-            timeKey = weekStart.toISOString().slice(0, 10);
-            break;
-          case 'monthly':
-          default:
-            timeKey = date.toISOString().slice(0, 7); // YYYY-MM
-            break;
-        }
-
-        if (!analytics[timeKey]) {
-          analytics[timeKey] = {
-            orders: 0,
-            revenue: 0,
-            averageOrderValue: 0
-          };
-        }
-
-        analytics[timeKey].orders += 1;
-        analytics[timeKey].revenue += order.total;
-      });
-
-      // Calculate average order value for each time period
-      Object.keys(analytics).forEach(key => {
-        if (analytics[key].orders > 0) {
-          analytics[key].averageOrderValue = analytics[key].revenue / analytics[key].orders;
-        }
-      });
-
-      return analytics;
-    } catch (error) {
-      throw new Error(`Failed to get time-based analytics: ${error.message}`);
-    }
   }
 }
 

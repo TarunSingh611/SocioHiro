@@ -12,23 +12,29 @@ const getDashboardAnalytics = async (req, res) => {
   }
 };
 
-// Get order analytics
+// Get order analytics (placeholder - no order system implemented yet)
 const getOrderAnalytics = async (req, res) => {
   try {
-    const analyticsService = new AnalyticsService(req.user);
-    const analytics = await analyticsService.getOrderAnalytics();
-    res.json(analytics);
+    res.json({
+      totalOrders: 0,
+      totalRevenue: 0,
+      avgOrderValue: 0,
+      message: 'Order analytics not implemented yet'
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// Get product analytics
+// Get product analytics (placeholder - no product system implemented yet)
 const getProductAnalytics = async (req, res) => {
   try {
-    const analyticsService = new AnalyticsService(req.user);
-    const analytics = await analyticsService.getProductAnalytics();
-    res.json(analytics);
+    res.json({
+      totalProducts: 0,
+      activeProducts: 0,
+      totalSales: 0,
+      message: 'Product analytics not implemented yet'
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -72,16 +78,15 @@ const getTimeBasedAnalytics = async (req, res) => {
 const getSummaryMetrics = async (req, res) => {
   try {
     const analyticsService = new AnalyticsService(req.user);
-    const [orderAnalytics, productAnalytics, engagementAnalytics, revenueAnalytics] = await Promise.all([
-      analyticsService.getOrderAnalytics(),
-      analyticsService.getProductAnalytics(),
+    const [contentAnalytics, engagementAnalytics, revenueAnalytics] = await Promise.all([
+      analyticsService.getContentAnalytics(),
       analyticsService.getEngagementAnalytics(),
       analyticsService.getRevenueAnalytics()
     ]);
 
     const summary = analyticsService.generateSummary(
-      orderAnalytics,
-      productAnalytics,
+      { totalOrders: 0 }, // Placeholder for order analytics
+      { totalProducts: 0 }, // Placeholder for product analytics
       engagementAnalytics,
       revenueAnalytics
     );
@@ -95,16 +100,16 @@ const getSummaryMetrics = async (req, res) => {
 // Get analytics export (CSV format)
 const exportAnalytics = async (req, res) => {
   try {
-    const { type = 'orders', timeframe = 'monthly' } = req.query;
+    const { type = 'content', timeframe = 'monthly' } = req.query;
     const analyticsService = new AnalyticsService(req.user);
     
     let data;
     switch (type) {
-      case 'orders':
-        data = await analyticsService.getOrderAnalytics();
+      case 'content':
+        data = await analyticsService.getContentAnalytics();
         break;
-      case 'products':
-        data = await analyticsService.getProductAnalytics();
+      case 'engagement':
+        data = await analyticsService.getEngagementAnalytics();
         break;
       case 'revenue':
         data = await analyticsService.getRevenueAnalytics();

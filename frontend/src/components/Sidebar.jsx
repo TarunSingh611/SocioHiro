@@ -12,7 +12,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
   { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
   { name: 'Campaigns', href: '/campaigns', icon: CalendarIcon },
-  { name: 'Instagram Accounts', href: '/instagram-accounts', icon: UserGroupIcon },
+
   { name: 'Automation', href: '/automation', icon: ChatBubbleLeftRightIcon },
   { name: 'Settings', href: '/settings', icon: CogIcon },
 ];

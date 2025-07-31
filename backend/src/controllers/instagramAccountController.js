@@ -1,216 +1,179 @@
-const InstagramAccount = require('../models/InstagramAccount');
+const User = require('../models/User');
 const InstagramApiService = require('../services/instagramApi');
 const { requireAuth } = require('../middleware/auth');
 
-// Get all Instagram accounts for user
-const getAccounts = async (req, res) => {
+// Get current user's Instagram account info
+const getCurrentAccount = async (req, res) => {
   try {
-    const accounts = await InstagramAccount.find({ userId: req.user._id });
-    res.json(accounts);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Get single Instagram account
-const getAccount = async (req, res) => {
-  try {
-    const account = await InstagramAccount.findOne({ 
-      _id: req.params.id, 
-      userId: req.user._id 
-    });
+    const user = await User.findById(req.user._id);
     
-    if (!account) {
-      return res.status(404).json({ error: 'Instagram account not found' });
+    if (!user.hasInstagramConnected()) {
+      return res.status(404).json({ error: 'No Instagram account connected' });
     }
     
-    res.json(account);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+    // Create Instagram API service with user's access token
+    const instagramApi = new InstagramApiService(user.accessToken);
+    
+    // Get detailed account info from Instagram API
+    let instagramData;
+    try {
+      instagramData = await instagramApi.getDetailedAccountInfo();
+    } catch (apiError) {
+      console.error('Instagram API error:', apiError.message);
 
-// Add new Instagram account
-const addAccount = async (req, res) => {
-  try {
-    const { instagramId, username, accessToken, refreshToken, profilePic } = req.body;
-    
-    // Check if account already exists for this user
-    const existingAccount = await InstagramAccount.findOne({ 
-      instagramId, 
-      userId: req.user._id 
-    });
-    
-    if (existingAccount) {
-      return res.status(400).json({ error: 'Instagram account already connected' });
+
+      // Fallback to stored data if API fails
+      instagramData = {
+
+        username: instagramData.username || user.username,
+        fullName: instagramData.name || user.instagramFullName || user.username,
+        bio: instagramData.biography || user.instagramBio || '',
+        profilePic: instagramData.profile_picture_url || user.profilePic || '',
+        
+        // Account Stats
+        posts: instagramData.media_count || user.instagramPostsCount || 0,
+        followers: (instagramData.followers_count || user.instagramFollowersCount || 0).toLocaleString(),
+        following: instagramData.follows_count || user.instagramFollowingCount || 0,
+        
+        // Account Details
+        accountType: instagramData.account_type || user.accountType || 'PERSONAL',
+        isVerified: user.instagramIsVerified || false, // Not available from API, use stored value
+        
+        
+        // Dates
+        joinedDate: user.instagramJoinedDate || user.createdAt, // Not available from API, use stored value
+        
+        // Connection Info
+        instagramId: instagramData.id || user.instagramId,
+        connectedAt: user.createdAt,
+
+      };
     }
     
-    const account = new InstagramAccount({
-      userId: req.user._id,
-      instagramId,
-      username,
-      accessToken,
-      refreshToken,
-      profilePic
-    });
-    
-    await account.save();
-    res.status(201).json(account);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Update Instagram account
-const updateAccount = async (req, res) => {
-  try {
-    const account = await InstagramAccount.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user._id },
-      { ...req.body, updatedAt: new Date() },
-      { new: true }
-    );
-    
-    if (!account) {
-      return res.status(404).json({ error: 'Instagram account not found' });
-    }
-    
-    res.json(account);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Delete Instagram account
-const deleteAccount = async (req, res) => {
-  try {
-    const account = await InstagramAccount.findOneAndDelete({ 
-      _id: req.params.id, 
-      userId: req.user._id 
-    });
-    
-    if (!account) {
-      return res.status(404).json({ error: 'Instagram account not found' });
-    }
-    
-    res.json({ message: 'Instagram account removed successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Toggle account active status
-const toggleAccountStatus = async (req, res) => {
-  try {
-    const account = await InstagramAccount.findOne({ 
-      _id: req.params.id, 
-      userId: req.user._id 
-    });
-    
-    if (!account) {
-      return res.status(404).json({ error: 'Instagram account not found' });
-    }
-    
-    account.isActive = !account.isActive;
-    await account.save();
-    
-    res.json(account);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Refresh account tokens
-const refreshAccountTokens = async (req, res) => {
-  try {
-    const account = await InstagramAccount.findOne({ 
-      _id: req.params.id, 
-      userId: req.user._id 
-    });
-    
-    if (!account) {
-      return res.status(404).json({ error: 'Instagram account not found' });
-    }
-    
-    // Note: This would require implementing token refresh logic
-    // For now, we'll return the current account
-    res.json(account);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Get account analytics
-const getAccountAnalytics = async (req, res) => {
-  try {
-    const account = await InstagramAccount.findOne({ 
-      _id: req.params.id, 
-      userId: req.user._id 
-    });
-    
-    if (!account) {
-      return res.status(404).json({ error: 'Instagram account not found' });
-    }
-    
-    // Create Instagram API service with account's access token
-    const instagramApi = new InstagramApiService(account.accessToken);
-    
-    // Get basic account info
-    const analytics = {
-      accountId: account.instagramId,
-      username: account.username,
-      isActive: account.isActive,
-      connectedAt: account.createdAt,
-      lastUpdated: account.updatedAt
+    // Format the response according to the enhanced structure
+    const accountInfo = {
+      // Basic Profile Info
+      username: instagramData.username || user.username,
+      fullName: instagramData.name || user.instagramFullName || user.username,
+      bio: instagramData.biography || user.instagramBio || '',
+      profilePic: instagramData.profile_picture_url || user.profilePic || '',
+      
+      // Account Stats
+      posts: instagramData.media_count || user.instagramPostsCount || 0,
+      followers: (instagramData.followers_count || user.instagramFollowersCount || 0).toLocaleString(),
+      following: instagramData.follows_count || user.instagramFollowingCount || 0,
+      
+      // Account Details
+      accountType: instagramData.account_type || user.accountType || 'PERSONAL',
+      isVerified: user.instagramIsVerified || false, // Not available from API, use stored value
+      
+      
+      // Dates
+      joinedDate: user.instagramJoinedDate || user.createdAt, // Not available from API, use stored value
+      
+      // Connection Info
+      instagramId: instagramData.id || user.instagramId,
+      connectedAt: user.createdAt,
     };
     
-    // Note: Additional analytics would require Instagram Graph API permissions
-    // For now, we'll return basic account info
+    res.json(accountInfo);
+  } catch (error) {
+    console.error('Error in getCurrentAccount:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Connect Instagram account (update user's Instagram credentials)
+const connectAccount = async (req, res) => {
+  try {
+    const { instagramId, username, accessToken, refreshToken, profilePic, accountType } = req.body;
     
-    res.json(analytics);
+    const user = await User.findById(req.user._id);
+    
+    // Update user's Instagram credentials
+    user.instagramId = instagramId;
+    user.username = username;
+    user.accessToken = accessToken;
+    user.refreshToken = refreshToken;
+    user.profilePic = profilePic;
+    user.accountType = accountType;
+    user.lastTokenRefresh = new Date();
+    
+    // Fetch and store detailed Instagram data
+    try {
+      const instagramApi = new InstagramApiService(accessToken);
+      const instagramData = await instagramApi.getDetailedAccountInfo();
+      
+      // Store additional Instagram profile data
+      user.instagramFullName = instagramData.name;
+      user.instagramBio = instagramData.biography;
+      user.profilePic = instagramData.profile_picture_url || user.profilePic;
+      // Note: website, email, phone, location, verified, and created_time are not available from Instagram API
+      // These fields will remain null/empty unless manually set
+      user.instagramPostsCount = instagramData.media_count || 0;
+      user.instagramFollowersCount = instagramData.followers_count || 0;
+      user.instagramFollowingCount = instagramData.follows_count || 0;
+      // Note: created_time is not available from Instagram API, will remain null
+    } catch (apiError) {
+      console.error('Failed to fetch detailed Instagram data:', apiError.message);
+      // Continue with basic connection even if detailed data fetch fails
+    }
+    
+    await user.save();
+    
+    res.json({
+      message: 'Instagram account connected successfully',
+      account: {
+        instagramId: user.instagramId,
+        username: user.username,
+        profilePic: user.profilePic,
+        accountType: user.accountType
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// Get primary account (first active account)
-const getPrimaryAccount = async (req, res) => {
+// Disconnect Instagram account
+const disconnectAccount = async (req, res) => {
   try {
-    const primaryAccount = await InstagramAccount.findOne({ 
-      userId: req.user._id,
-      isActive: true 
-    }).sort({ createdAt: 1 });
+    const user = await User.findById(req.user._id);
     
-    if (!primaryAccount) {
-      return res.status(404).json({ error: 'No active Instagram account found' });
+    if (!user.hasInstagramConnected()) {
+      return res.status(404).json({ error: 'No Instagram account connected' });
     }
     
-    res.json(primaryAccount);
+    // Disconnect Instagram account
+    user.disconnectInstagram();
+    await user.save();
+    
+    res.json({ message: 'Instagram account disconnected successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// Set account as primary
-const setPrimaryAccount = async (req, res) => {
+// Refresh Instagram tokens
+const refreshTokens = async (req, res) => {
   try {
-    // Deactivate all accounts
-    await InstagramAccount.updateMany(
-      { userId: req.user._id },
-      { isActive: false }
-    );
+    const user = await User.findById(req.user._id);
     
-    // Activate the selected account
-    const account = await InstagramAccount.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user._id },
-      { isActive: true },
-      { new: true }
-    );
-    
-    if (!account) {
-      return res.status(404).json({ error: 'Instagram account not found' });
+    if (!user.hasInstagramConnected()) {
+      return res.status(404).json({ error: 'No Instagram account connected' });
     }
     
-    res.json(account);
+    // Note: This would require implementing token refresh logic with Instagram API
+    // For now, we'll return the current account info
+    res.json({
+      message: 'Token refresh initiated',
+      account: {
+        instagramId: user.instagramId,
+        username: user.username,
+        lastTokenRefresh: user.lastTokenRefresh,
+        tokenExpiresAt: user.tokenExpiresAt
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -219,17 +182,31 @@ const setPrimaryAccount = async (req, res) => {
 // Get account connection status
 const getConnectionStatus = async (req, res) => {
   try {
-    const accounts = await InstagramAccount.find({ userId: req.user._id });
+    const user = await User.findById(req.user._id);
     
     const status = {
-      totalAccounts: accounts.length,
-      activeAccounts: accounts.filter(acc => acc.isActive).length,
-      accounts: accounts.map(account => ({
-        id: account._id,
-        username: account.username,
-        isActive: account.isActive,
-        connectedAt: account.createdAt
-      }))
+      isConnected: user.hasInstagramConnected(),
+      account: user.hasInstagramConnected() ? {
+        instagramId: user.instagramId,
+        username: user.username,
+        profilePic: user.profilePic,
+        accountType: user.accountType,
+        connectedAt: user.createdAt,
+        lastTokenRefresh: user.lastTokenRefresh,
+        tokenExpiresAt: user.tokenExpiresAt,
+        // Enhanced data
+        fullName: user.instagramFullName,
+        bio: user.instagramBio,
+        website: user.instagramWebsite,
+        email: user.instagramEmail,
+        phone: user.instagramPhone,
+        location: user.instagramLocation,
+        isVerified: user.instagramIsVerified,
+        postsCount: user.instagramPostsCount,
+        followersCount: user.instagramFollowersCount,
+        followingCount: user.instagramFollowingCount,
+        joinedDate: user.instagramJoinedDate
+      } : null
     };
     
     res.json(status);
@@ -238,16 +215,110 @@ const getConnectionStatus = async (req, res) => {
   }
 };
 
+// Get account analytics (basic info)
+const getAccountAnalytics = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    
+    if (!user.hasInstagramConnected()) {
+      return res.status(404).json({ error: 'No Instagram account connected' });
+    }
+    
+    // Create Instagram API service with user's access token
+    const instagramApi = new InstagramApiService(user.accessToken);
+    
+    // Get enhanced account analytics
+    const analytics = {
+      instagramId: user.instagramId,
+      username: user.username,
+      accountType: user.accountType,
+      connectedAt: user.createdAt,
+      lastTokenRefresh: user.lastTokenRefresh,
+      tokenExpiresAt: user.tokenExpiresAt,
+      
+      // Enhanced analytics data
+      profile: {
+        fullName: user.instagramFullName,
+        bio: user.instagramBio,
+        website: user.instagramWebsite,
+        email: user.instagramEmail,
+        phone: user.instagramPhone,
+        location: user.instagramLocation,
+        isVerified: user.instagramIsVerified,
+        joinedDate: user.instagramJoinedDate
+      },
+      
+      stats: {
+        posts: user.instagramPostsCount,
+        followers: user.instagramFollowersCount,
+        following: user.instagramFollowingCount,
+        followersFormatted: user.instagramFollowersCount ? user.instagramFollowersCount.toLocaleString() : '0'
+      }
+    };
+    
+    // Try to get fresh data from Instagram API
+    try {
+      const instagramData = await instagramApi.getDetailedAccountInfo();
+      
+      // Update analytics with fresh data
+      analytics.profile.fullName = instagramData.name || analytics.profile.fullName;
+      analytics.profile.bio = instagramData.biography || analytics.profile.bio;
+      // Note: website, email, phone, location, verified, and created_time are not available from Instagram API
+      // These fields will remain as stored values
+      
+      analytics.stats.posts = instagramData.media_count || analytics.stats.posts;
+      analytics.stats.followers = instagramData.followers_count || analytics.stats.followers;
+      analytics.stats.following = instagramData.follows_count || analytics.stats.following;
+      analytics.stats.followersFormatted = (instagramData.followers_count || analytics.stats.followers).toLocaleString();
+      
+    } catch (apiError) {
+      console.error('Failed to fetch fresh Instagram data for analytics:', apiError.message);
+      // Continue with stored data
+    }
+    
+    res.json(analytics);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Update account settings
+const updateAccountSettings = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    
+    if (!user.hasInstagramConnected()) {
+      return res.status(404).json({ error: 'No Instagram account connected' });
+    }
+    
+    // Update allowed fields
+    const { username, profilePic } = req.body;
+    
+    if (username) user.username = username;
+    if (profilePic) user.instagramProfilePic = profilePic;
+    
+    await user.save();
+    
+    res.json({
+      message: 'Account settings updated successfully',
+      account: {
+        instagramId: user.instagramId,
+        username: user.username,
+        profilePic: user.instagramProfilePic,
+        accountType: user.instagramAccountType
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
-  getAccounts,
-  getAccount,
-  addAccount,
-  updateAccount,
-  deleteAccount,
-  toggleAccountStatus,
-  refreshAccountTokens,
+  getCurrentAccount,
+  connectAccount,
+  disconnectAccount,
+  refreshTokens,
+  getConnectionStatus,
   getAccountAnalytics,
-  getPrimaryAccount,
-  setPrimaryAccount,
-  getConnectionStatus
+  updateAccountSettings
 }; 

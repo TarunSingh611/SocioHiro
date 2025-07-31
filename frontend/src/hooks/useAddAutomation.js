@@ -21,10 +21,10 @@ export const useAddAutomation = () => {
     exactMatch: false,
     caseSensitive: false,
     isActive: true,
-    cooldownMinutes: 5,
-    maxExecutionsPerUser: 1,
+    cooldownMinutes: 0, // Minimum cooldown for maximum responsiveness
+    maxExecutionsPerUser: 10, // Maximum executions per user
     conditions: {
-      maxExecutionsPerDay: 10,
+      maxExecutionsPerDay: 100000, // Maximum executions per day for large accounts
       timeOfDay: {
         start: '',
         end: ''
@@ -38,7 +38,6 @@ export const useAddAutomation = () => {
         min: null,
         max: null
       },
-      excludeKeywords: [],
       requireVerifiedUser: false
     }
   });
@@ -141,25 +140,27 @@ export const useAddAutomation = () => {
       setLoading(true);
       setError(null);
 
-      // Prepare automation data
+      // Prepare automation data with proper structure
       const automationData = {
         ...formData,
+        // Handle keywords properly - convert string to array and add to triggers
         keywords: formData.keywords ? formData.keywords.split(',').map(k => k.trim()).filter(k => k) : [],
+        // Handle content selection properly
         contentId: selectedContent?._id || null,
-        instagramMediaId: selectedContent?.instagramMediaId || null,
+        instagramId: selectedContent?.instagramId || null,
+        applyToAllContent: !selectedContent, // Set to true if no specific content selected
         // Ensure conditions object is properly structured
         conditions: {
           ...formData.conditions,
-          maxExecutionsPerDay: formData.conditions.maxExecutionsPerDay || 10,
+          maxExecutionsPerDay: formData.conditions.maxExecutionsPerDay || 100000,
           timeOfDay: formData.conditions.timeOfDay || { start: '', end: '' },
           daysOfWeek: formData.conditions.daysOfWeek || [],
           userFollowerCount: formData.conditions.userFollowerCount || { min: null, max: null },
           userAccountAge: formData.conditions.userAccountAge || { min: null, max: null },
-          excludeKeywords: formData.conditions.excludeKeywords || [],
           requireVerifiedUser: formData.conditions.requireVerifiedUser || false
         },
-        cooldownMinutes: formData.cooldownMinutes || 5,
-        maxExecutionsPerUser: formData.maxExecutionsPerUser || 1
+        cooldownMinutes: formData.cooldownMinutes || 0,
+        maxExecutionsPerUser: formData.maxExecutionsPerUser || 10
       };
 
       // Remove empty or null values from conditions
@@ -190,10 +191,10 @@ export const useAddAutomation = () => {
       exactMatch: false,
       caseSensitive: false,
       isActive: true,
-      cooldownMinutes: 5,
-      maxExecutionsPerUser: 1,
+      cooldownMinutes: 0, // Minimum cooldown for maximum responsiveness
+      maxExecutionsPerUser: 10, // Maximum executions per user
       conditions: {
-        maxExecutionsPerDay: 10,
+        maxExecutionsPerDay: 100000, // Maximum executions per day for large accounts
         timeOfDay: {
           start: '',
           end: ''
@@ -207,7 +208,6 @@ export const useAddAutomation = () => {
           min: null,
           max: null
         },
-        excludeKeywords: [],
         requireVerifiedUser: false
       }
     });

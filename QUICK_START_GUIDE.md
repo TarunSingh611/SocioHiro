@@ -1,188 +1,190 @@
-# Quick Start Guide: Instagram Graph API Testing
+# Quick Start Guide - SocioHiro
 
-## 🚀 TL;DR - How to Test Without Live Mode
+## 🎯 What is SocioHiro?
 
-### **The Problem**
-- Instagram Graph API webhooks require "Live" mode
-- But you can test **authentication** and **basic API calls** in Development mode
-- Webhooks are only needed for real-time events (mentions, comments, etc.)
+SocioHiro is a modern web application that helps businesses manage their Instagram presence efficiently. It provides content management, automation, analytics, and campaign tools all in one platform.
 
-### **The Solution**
-1. **Test authentication** ✅ (works in Development mode)
-2. **Test basic API calls** ✅ (works in Development mode)  
-3. **Mock webhook events** ✅ (for testing webhook handlers)
-4. **Use ngrok** for webhook testing (optional)
+## 🚀 Key Features at a Glance
 
----
+### 📱 Content Management
+- **Instagram Sync**: Automatically sync your Instagram posts, reels, and stories
+- **Performance Tracking**: Visual indicators for content performance
+- **Media Support**: Handle images, videos, and carousel posts
+- **Flip View**: Toggle between Instagram view and app data view
 
-## 📋 Step-by-Step Testing
+### 🤖 Automation System
+- **Smart Rules**: Create automated responses based on content triggers
+- **Campaign Management**: Schedule and manage marketing campaigns
+- **Real-time Monitoring**: Track automation performance and logs
 
-### 1. **Update Your Environment Variables**
+### 📊 Analytics Dashboard
+- **Engagement Metrics**: Comprehensive Instagram analytics
+- **Performance Insights**: Track content performance over time
+- **Real-time Data**: Live updates from Instagram API
 
+## 🛠️ Tech Stack
+
+**Frontend**: React 19 + Vite + Tailwind CSS  
+**Backend**: Node.js + Express + MongoDB  
+**APIs**: Instagram Graph API + Webhooks  
+**Deployment**: Vercel (Frontend) + Railway (Backend)
+
+## 📦 Installation (5 minutes)
+
+### 1. Clone & Install
+```bash
+git clone https://github.com/yourusername/sociohiro.git
+cd sociohiro
+npm run install:all
+```
+
+### 2. Environment Setup
+Create `.env` files in both `backend/` and `frontend/` directories:
+
+**Backend (.env)**
 ```env
-# backend/.env
-INSTAGRAM_APP_ID=532563143212029
-INSTAGRAM_APP_SECRET=your_app_secret_here
+MONGODB_URI=your_mongodb_connection_string
+SESSION_SECRET=your_session_secret
+INSTAGRAM_CLIENT_ID=your_instagram_client_id
+INSTAGRAM_CLIENT_SECRET=your_instagram_client_secret
 INSTAGRAM_CALLBACK_URL=http://localhost:5000/api/auth/instagram/callback
-WEBHOOK_VERIFY_TOKEN=sociohiro_webhook_token
+JWT_SECRET=your_jwt_secret
+NODE_ENV=development
+PORT=5000
 ```
 
-### 2. **Install Dependencies**
-
-```bash
-cd backend
-npm install passport-facebook
+**Frontend (.env)**
+```env
+VITE_API_URL=http://localhost:5000
+VITE_INSTAGRAM_CLIENT_ID=your_instagram_client_id
 ```
 
-### 3. **Start Your Servers**
-
+### 3. Start Development
 ```bash
-# Terminal 1: Backend
-cd backend
 npm run dev
+```
 
-# Terminal 2: Frontend  
+### 4. Access Application
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:5000
+
+## 🚀 Deployment (10 minutes)
+
+### Frontend (Vercel)
+```bash
 cd frontend
-npm run dev
+vercel --prod
 ```
 
-### 4. **Test Authentication**
+### Backend (Railway)
+1. Connect GitHub repository to Railway
+2. Set environment variables
+3. Deploy automatically
 
-1. Visit: `http://localhost:5173`
-2. Click "Continue with Social Media"
-3. Complete Facebook OAuth
-4. Check if user is created in database
+## 🎯 Demo Features
 
-### 5. **Run Webhook Tests**
+### Content Management
+1. **Login with Instagram**: OAuth integration
+2. **View Content**: See all your Instagram posts
+3. **Performance Tracking**: Visual performance indicators
+4. **Flip View**: Toggle between Instagram and app views
+
+### Automation
+1. **Create Rules**: Set up automation triggers
+2. **Configure Responses**: Define automated actions
+3. **Monitor Performance**: Track automation effectiveness
+
+### Analytics
+1. **Engagement Metrics**: View likes, comments, shares
+2. **Performance Insights**: Track content performance
+3. **Campaign Analytics**: Monitor campaign effectiveness
+
+## 📊 Project Structure
+
+```
+SocioHiro/
+├── frontend/          # React application
+│   ├── src/
+│   │   ├── components/  # UI components
+│   │   ├── pages/       # Page components
+│   │   └── services/    # API services
+│   └── package.json
+├── backend/           # Node.js API
+│   ├── src/
+│   │   ├── controllers/  # API controllers
+│   │   ├── models/       # Database models
+│   │   ├── routes/       # API routes
+│   │   └── services/     # Business logic
+│   └── package.json
+└── README.md
+```
+
+## 🔧 Available Scripts
 
 ```bash
-cd backend
-npm test
+# Development
+npm run dev              # Start both frontend and backend
+npm run dev:frontend     # Start frontend only
+npm run dev:backend      # Start backend only
+
+# Building
+npm run build            # Build frontend for production
+npm run start            # Start production server
+
+# Utilities
+npm run clean            # Clean node_modules
+npm run install:all      # Install all dependencies
 ```
 
-This will test:
-- ✅ Health endpoint
-- ✅ Authentication redirect
-- ✅ Webhook verification
-- ✅ Webhook event processing
+## 🎯 Key Components
+
+### ContentCard.jsx
+- Displays Instagram content with performance metrics
+- Flip view between Instagram and app data
+- Real-time engagement tracking
+- Media support (images, videos, carousel)
+
+### Automation System
+- Rule-based automation triggers
+- Multi-condition workflows
+- Performance monitoring
+- Real-time execution logs
+
+### Analytics Dashboard
+- Comprehensive Instagram metrics
+- Performance tracking over time
+- Campaign effectiveness monitoring
+- Real-time data updates
+
+## 🚀 Ready for Production
+
+### Security Features
+- Instagram OAuth authentication
+- JWT token management
+- Secure API endpoints
+- CORS configuration
+
+### Performance Optimizations
+- React 19 with latest features
+- Vite for fast builds
+- Tailwind CSS for styling
+- MongoDB for data persistence
+
+### Deployment Ready
+- Vercel configuration for frontend
+- Railway/Render ready for backend
+- Environment variable management
+- Production build optimization
+
+## 📞 Support
+
+- **Documentation**: Check `/docs` folder
+- **Issues**: GitHub Issues
+- **Deployment**: See `VERCEL_DEPLOYMENT_GUIDE.md`
+- **Full Guide**: See main `README.md`
 
 ---
 
-## 🔧 What Works in Development Mode
+**SocioHiro** - A modern, production-ready Instagram management platform built with React, Node.js, and MongoDB. Perfect for businesses looking to streamline their social media operations.
 
-### ✅ **Authentication & Basic Features**
-- Facebook OAuth login
-- Getting user's Facebook pages
-- Reading Instagram Business Account info
-- Basic account data retrieval
-
-### ❌ **Requires Live Mode**
-- Real webhook events
-- Publishing content (requires app review)
-- Advanced permissions
-
----
-
-## 🧪 Testing Webhooks Locally
-
-### Option 1: Mock Testing (Recommended)
-
-```javascript
-// Test webhook manually
-const testEvent = {
-  object: 'page',
-  entry: [{
-    id: 'test_page_id',
-    time: Date.now(),
-    instagram: [{
-      type: 'mention',
-      data: {
-        id: 'test_mention_id',
-        username: 'test_user',
-        text: 'Great post! @sociohiro'
-      }
-    }]
-  }]
-};
-
-fetch('http://localhost:5000/api/webhooks/instagram', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(testEvent)
-});
-```
-
-### Option 2: ngrok Tunnel (For Real Webhook Testing)
-
-```bash
-# Install ngrok
-npm install -g ngrok
-
-# Start tunnel
-ngrok http 5000
-
-# Use the HTTPS URL in your Facebook App webhook settings
-# Example: https://abc123.ngrok.io/api/webhooks/instagram
-```
-
----
-
-## 📊 Testing Checklist
-
-### Development Testing
-- [ ] Server starts without errors
-- [ ] Facebook OAuth redirects correctly
-- [ ] User creation works
-- [ ] Webhook verification responds
-- [ ] Mock webhook events processed
-- [ ] All tests pass (`npm test`)
-
-### Production Preparation
-- [ ] App review submitted
-- [ ] Live mode enabled
-- [ ] Production domain configured
-- [ ] SSL certificate installed
-- [ ] Real webhook events working
-
----
-
-## 🚨 Common Issues & Solutions
-
-### **"App not in live mode"**
-- **Solution**: This is expected for development
-- **Workaround**: Use mock webhook testing
-
-### **"Invalid scope" errors**
-- **Solution**: Some permissions require app review
-- **Workaround**: Use basic permissions for testing
-
-### **"No Instagram Business Account found"**
-- **Solution**: Ensure user has Business/Creator account
-- **Check**: Instagram connected to Facebook Page
-
-### **"Webhook verification failed"**
-- **Solution**: Check verify token matches exactly
-- **Check**: Webhook URL is accessible
-
----
-
-## 🎯 Next Steps
-
-1. **Complete development testing** using the methods above
-2. **Test with real users** (add them as test users in Facebook App)
-3. **Submit for app review** when ready for production
-4. **Configure production webhooks** after app review
-5. **Monitor and optimize** webhook performance
-
----
-
-## 📚 Additional Resources
-
-- [Instagram Graph API Documentation](https://developers.facebook.com/docs/instagram-api/)
-- [Facebook App Review Guidelines](https://developers.facebook.com/docs/app-review/)
-- [Webhook Testing Guide](./WEBHOOK_TESTING_GUIDE.md)
-- [Instagram Graph API Setup](./INSTAGRAM_GRAPH_API_SETUP.md)
-
----
-
-**Remember**: You can test 90% of your app's functionality in Development mode. Webhooks are only needed for real-time features! 
+*Ready for deployment and team collaboration.* 🚀 

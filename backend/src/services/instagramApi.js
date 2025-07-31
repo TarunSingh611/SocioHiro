@@ -3,13 +3,13 @@ const axios = require('axios');
 class InstagramApiService {
   constructor(accessToken) {
     this.accessToken = accessToken;
-    this.baseUrl = 'https://graph.instagram.com';
-    
-    // Configure axios with longer timeout for Instagram API
+    // Use Instagram Graph API base URL with version 23.0
+    this.baseUrl = 'https://graph.instagram.com/v23.0';
     this.axiosInstance = axios.create({
-      timeout: 45000, // 45 seconds timeout
+      timeout: 10000,
       headers: {
-        'User-Agent': 'InstagramStore/1.0'
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
       }
     });
   }
@@ -56,6 +56,66 @@ class InstagramApiService {
     }
   }
 
+  // Check if token has messaging permissions
+  async checkMessagingPermissions() {
+    try {
+      const url = `${this.baseUrl}/me`;
+      const params = {
+        access_token: this.accessToken,
+        fields: 'id,username,account_type'
+      };
+      
+      const response = await this.axiosInstance.get(url, { params });
+      console.log('Account info for messaging permissions:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error checking permissions:', error.response?.data || error.message);
+      return null;
+    }
+  }
+
+  // Try to get user info by ID (to verify if user exists and is accessible)
+  async getUserInfo(userId) {
+    try {
+      const url = `${this.baseUrl}/${userId}?fields=id,username,account_type`;
+      
+      const response = await this.axiosInstance.get(url);
+      console.log('User info retrieved successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.log('Cannot retrieve user info:', error.response?.data || error.message);
+      return null;
+    }
+  }
+
+  // Try to get user info by ID (for recipient lookup)
+  async getUserInfoById(userId) {
+    try {
+      console.log('🔍 Attempting to get user info for ID:', userId);
+      const url = `${this.baseUrl}/${userId}?fields=id,username,account_type`;
+      console.log('📡 Making request to:', url);
+      
+      const response = await this.axiosInstance.get(url);
+      console.log('✅ User info retrieved successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.log('❌ Cannot get user info for ID:', userId);
+      console.log('Error details:', error.response?.data || error.message);
+      
+      // Provide specific guidance based on error
+      if (error.response?.data?.error?.code === 100) {
+        console.log('💡 This usually means:');
+        console.log('   1. User ID format is incorrect');
+        console.log('   2. User has privacy restrictions');
+        console.log('   3. User account is private or deleted');
+        console.log('   4. Instagram API permissions are insufficient');
+      }
+      
+      return null;
+    }
+  }
+  
+
   // Get Instagram user ID and username
   async getInstagramUserInfo() {
     try {
@@ -68,6 +128,21 @@ class InstagramApiService {
       return response.data; // { user_id, username }
     } catch (error) {
       throw new Error(`Failed to get Instagram user info: ${error.response?.data?.error?.message || error.message}`);
+    }
+  }
+
+  // Get comprehensive Instagram account information
+  async getDetailedAccountInfo() {
+    try {
+      const url = `${this.baseUrl}/me`;
+      const params = {
+        access_token: this.accessToken,
+        fields: 'id,username,account_type,media_count,followers_count,follows_count,biography,website,name,profile_picture_url'
+      };
+      const response = await this.axiosInstance.get(url, { params });
+      return response.data;
+    } catch (error) {
+      throw new Error(`Failed to get detailed Instagram account info: ${error.response?.data?.error?.message || error.message}`);
     }
   }
 
@@ -379,54 +454,256 @@ class InstagramApiService {
     throw new Error('Product catalog is not supported by the Instagram API with Instagram Login.');
   }
 
-  // Create webhook subscription
+  // Webhook management for Instagram API with Instagram Login
+  // Note: Webhooks must be configured manually in Facebook App dashboard
+  // Instagram API with Instagram Login does not support webhook creation via API
+  
   async createWebhookSubscription(webhookConfig) {
-    try {
-      const response = await this.axiosInstance.post(`${this.baseUrl}/me/webhooks`, webhookConfig);
-      return response.data;
-    } catch (error) {
-      console.error('Error creating webhook subscription:', error);
-      throw error;
-    }
+    throw new Error(
+      'Webhook creation via API is not supported for Instagram API with Instagram Login. ' +
+      'Please configure webhooks manually in your Facebook App dashboard:\n' +
+      '1. Go to https://developers.facebook.com/apps/\n' +
+      '2. Select your Instagram app\n' +
+      '3. Navigate to: Instagram Graph API → Webhooks\n' +
+      '4. Configure webhook URL and verify token\n' +
+      '5. Subscribe to desired fields (messages, mentions, comments)'
+    );
   }
 
-  // Get webhook subscriptions
   async getWebhookSubscriptions() {
-    try {
-      const response = await this.axiosInstance.get(`${this.baseUrl}/me/webhooks`);
-      return response.data.data || [];
-    } catch (error) {
-      console.error('Error getting webhook subscriptions:', error);
-      throw error;
-    }
+    throw new Error(
+      'Webhook subscription retrieval via API is not supported for Instagram API with Instagram Login. ' +
+      'Webhooks are managed through Facebook App dashboard configuration.'
+    );
   }
 
-  // Delete webhook subscription
   async deleteWebhookSubscription(subscriptionId) {
-    try {
-      await this.axiosInstance.delete(`${this.baseUrl}/me/webhooks/${subscriptionId}`);
-      return true;
-    } catch (error) {
-      console.error('Error deleting webhook subscription:', error);
-      throw error;
-    }
+    throw new Error(
+      'Webhook deletion via API is not supported for Instagram API with Instagram Login. ' +
+      'Webhooks are managed through Facebook App dashboard configuration.'
+    );
   }
 
-  // Update webhook fields
-  async updateWebhookFields(fields) {
+  async updateWebhookFields(subscriptionId, fields) {
     try {
-      const response = await this.axiosInstance.post(`${this.baseUrl}/me/webhooks`, {
-        object: 'instagram',
-        callback_url: process.env.WEBHOOK_CALLBACK_URL,
-        verify_token: process.env.WEBHOOK_VERIFY_TOKEN,
-        fields: fields
-      });
+      const url = `${this.baseUrl}/${subscriptionId}`;
+      const data = {
+        access_token: this.accessToken,
+        fields: fields.join(',')
+      };
+      
+      const response = await this.axiosInstance.post(url, data);
       return response.data;
     } catch (error) {
-      console.error('Error updating webhook fields:', error);
-      throw error;
+      console.error('Error updating webhook fields:', error.response?.data || error.message);
+      throw new Error(`Failed to update webhook fields: ${error.response?.data?.error?.message || error.message}`);
     }
   }
+
+
+
+    // Send direct message to commenter or DM sender
+  async sendDirectMessage(userId, message) {
+    try {
+      // Use the Instagram Business API messaging endpoint
+      const url = `${this.baseUrl}/me/messages`;
+      
+      // Format data as expected by Instagram Business API
+      const data = {
+        access_token: this.accessToken,
+        recipient: { id: userId },
+        message: { text: message }
+      };
+      
+      console.log('Sending Instagram Business API DM to user:', { 
+        recipientId: userId, 
+        message: message.substring(0, 50) + '...' 
+      });
+      
+      const response = await this.axiosInstance.post(url, data);
+      
+      if (response.data && response.data.message_id) {
+        console.log('✅ SUCCESS! DM sent via Instagram Business API');
+        return { success: true, message_id: response.data.message_id };
+      } else if (response.data && response.data.id) {
+        console.log('✅ SUCCESS! DM sent via Instagram Business API');
+        return { success: true, message_id: response.data.id };
+      } else {
+        console.log('❌ No message ID in response');
+        return { success: false, error: 'No message ID in response' };
+      }
+      
+    } catch (error) {
+      console.error('Error sending Instagram Business API DM:', error.response?.data || error.message);
+      
+      // Provide helpful error information
+      if (error.response?.data?.error?.code === 100) {
+        console.log('User not found error. This could be due to:');
+        console.log('1. User ID format mismatch');
+        console.log('2. User privacy settings');
+        console.log('3. Invalid user ID');
+        console.log('4. User account type restrictions');
+        console.log('5. Instagram Business API permissions insufficient');
+      }
+      
+      return {
+        success: false,
+        error: error.response?.data?.error?.message || error.message
+      };
+    }
+  }
+
+  // Send private reply to comment (Instagram Private Reply)
+  async sendPrivateReplyToComment(commentId, message) {
+    try {
+      const url = `${this.baseUrl}/${commentId}/private_replies`;
+      const data = {
+        access_token: this.accessToken,
+        message: message
+      };
+      
+      console.log('Sending private reply to comment:', { commentId, message: message.substring(0, 50) + '...' });
+      
+      const response = await this.axiosInstance.post(url, data);
+      
+      if (response.data && response.data.id) {
+        console.log('✅ SUCCESS! Private reply sent');
+        return { success: true, reply_id: response.data.id };
+      } else {
+        return { success: false, error: 'No reply ID in response' };
+      }
+      
+    } catch (error) {
+      console.error('Error sending private reply:', error.response?.data || error.message);
+      return {
+        success: false,
+        error: error.response?.data?.error?.message || error.message
+      };
+    }
+  }
+
+  // Get commenters for a specific post
+  async getCommenters(mediaId) {
+    try {
+      const url = `${this.baseUrl}/${mediaId}/comments`;
+      const params = {
+        access_token: this.accessToken,
+        fields: 'id,text,from,timestamp,username'
+      };
+      
+      const response = await this.axiosInstance.get(url, { params });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error getting commenters:', error.response?.data || error.message);
+      throw new Error(`Failed to get commenters: ${error.response?.data?.error?.message || error.message}`);
+    }
+  }
+
+  // Get recent messages (for DM senders)
+  async getRecentMessages(limit = 25) {
+    try {
+      const url = `${this.baseUrl}/me/conversations`;
+      const params = {
+        access_token: this.accessToken,
+        fields: 'id,participants,messages{id,from,to,message,created_time}',
+        limit: limit
+      };
+      
+      const response = await this.axiosInstance.get(url, { params });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error getting recent messages:', error.response?.data || error.message);
+      throw new Error(`Failed to get recent messages: ${error.response?.data?.error?.message || error.message}`);
+    }
+  }
+
+  // Like comment
+  async likeComment(commentId, instagramAccountId) {
+    try {
+      const url = `${this.baseUrl}/${commentId}/likes`;
+      const data = { access_token: this.accessToken };
+      
+      console.log('Liking comment:', commentId);
+      
+      const response = await this.axiosInstance.post(url, data);
+      
+      if (response.status === 200 || response.status === 201) {
+        return { success: true, comment_id: commentId };
+      } else {
+        return { success: false, error: 'Failed to like comment' };
+      }
+    } catch (error) {
+      console.error('Error liking comment:', error.response?.data || error.message);
+      return {
+        success: false,
+        error: error.response?.data?.error?.message || error.message
+      };
+    }
+  }
+
+  // Follow user
+  async followUser(userId, instagramAccountId) {
+    try {
+      const url = `${this.baseUrl}/me/follows`;
+      const data = {
+        target_user_id: userId,
+        access_token: this.accessToken
+      };
+      
+      console.log('Following user:', userId);
+      
+      const response = await this.axiosInstance.post(url, data);
+      
+      if (response.status === 200 || response.status === 201) {
+        return { success: true, user_id: userId };
+      } else {
+        return { success: false, error: 'Failed to follow user' };
+      }
+    } catch (error) {
+      console.error('Error following user:', error.response?.data || error.message);
+      return {
+        success: false,
+        error: error.response?.data?.error?.message || error.message
+      };
+    }
+  }
+
+  // Send story reply
+  async sendStoryReply(userId, message, instagramAccountId) {
+    try {
+      const url = `${this.baseUrl}/me/messages`;
+      
+      const data = {
+        recipient: { id: userId },
+        message: { 
+          text: message,
+          story_reply: true
+        }
+      };
+      
+      console.log('Sending story reply:', { userId, message: message.substring(0, 50) + '...' });
+      
+      const response = await this.axiosInstance.post(url, data, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.data && response.data.message_id) {
+        return { success: true, message_id: response.data.message_id };
+      } else {
+        return { success: false, error: 'Failed to send story reply' };
+      }
+    } catch (error) {
+      console.error('Error sending story reply:', error.response?.data || error.message);
+      return {
+        success: false,
+        error: error.response?.data?.error?.message || error.message
+      };
+    }
+  }
+
 }
 
 module.exports = InstagramApiService; 

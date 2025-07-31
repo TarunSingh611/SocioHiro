@@ -10,49 +10,6 @@ const useUserStore = create(
       isAuthenticated: false,
       isLoading: false,
       setUser: (user, accessToken) => set({ user, accessToken, isAuthenticated: !!user }),
-      login: async (email, password) => {
-        try {
-          set({ isLoading: true });
-          const response = await api.post('/auth/login', { email, password });
-          const { user, accessToken, sessionInfo } = response.data;
-          
-          // Set both localStorage and state
-          localStorage.setItem('token', accessToken);
-          set({ user, accessToken, isAuthenticated: true, isLoading: false });
-          
-          console.log('Login successful:', { user, isAuthenticated: true });
-          
-          // Return session info for potential limit notifications
-          return { ...response.data, sessionInfo };
-        } catch (error) {
-          set({ isLoading: false });
-          console.error('Login failed:', error);
-          throw new Error(error.response?.data?.message || 'Login failed');
-        }
-      },
-      register: async (userData) => {
-        try {
-          set({ isLoading: true });
-          const response = await api.post('/auth/register', userData);
-          // After successful registration, login the user
-          const loginResponse = await api.post('/auth/login', { 
-            email: userData.email, 
-            password: userData.password 
-          });
-          const { user, accessToken } = loginResponse.data;
-          
-          // Set both localStorage and state
-          localStorage.setItem('token', accessToken);
-          set({ user, accessToken, isAuthenticated: true, isLoading: false });
-          
-          console.log('Registration successful:', { user, isAuthenticated: true });
-          return loginResponse.data;
-        } catch (error) {
-          set({ isLoading: false });
-          console.error('Registration failed:', error);
-          throw new Error(error.response?.data?.message || 'Registration failed');
-        }
-      },
       loginWithInstagram: async () => {
         try {
           // Redirect to backend Instagram OAuth endpoint

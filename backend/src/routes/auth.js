@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const JWTService = require('../utils/jwt');
 const SessionService = require('../services/sessionService');
@@ -18,7 +17,6 @@ router.get('/verify', optionalAuth, (req, res) => {
         id: req.user._id,
         username: req.user.username,
         instagramId: req.user.instagramId,
-        facebookId: req.user.facebookId,
         accountType: req.user.accountType
       },
       hasInstagramToken: !!req.user.accessToken
@@ -38,7 +36,6 @@ router.get('/status', optionalAuth, (req, res) => {
         id: req.user._id,
         username: req.user.username,
         instagramId: req.user.instagramId,
-        facebookId: req.user.facebookId,
         accountType: req.user.accountType,
         email: req.user.email,
         profilePic: req.user.profilePic
@@ -52,76 +49,6 @@ router.get('/status', optionalAuth, (req, res) => {
       user: null,
       hasInstagramToken: false
     });
-  }
-});
-
-// Login route (for traditional email/password login if needed)
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-
-    // Find user by email or username
-    const user = await User.findOne({
-      $or: [
-        { email: email.toLowerCase() },
-        { username: email.toLowerCase() }
-      ]
-    });
-
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    // Check if user has a password (for Instagram-only users, this might not exist)
-    if (!user.password) {
-      return res.status(401).json({ error: 'Please login with Instagram' });
-    }
-
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    // Generate session ID and add session
-    const sessionId = SessionService.generateSessionId();
-    const deviceInfo = SessionService.getDeviceInfo(req);
-    const updatedUser = await SessionService.addSession(user._id, sessionId, deviceInfo);
-
-    // Generate JWT token with session ID
-    const jwtToken = JWTService.generateToken(updatedUser, sessionId);
-
-    // Check if any sessions were removed due to limits
-    const activeSessions = await SessionService.getActiveSessions(user._id);
-    const sessionLimitReached = activeSessions.length >= updatedUser.maxConcurrentSessions;
-
-          res.json({
-        success: true,
-        user: {
-          id: updatedUser._id,
-          username: updatedUser.username,
-          email: updatedUser.email,
-          instagramId: updatedUser.instagramId,
-          isActive: updatedUser.isActive,
-          lastLoginAt: updatedUser.lastLoginAt,
-          sessionCount: updatedUser.sessionCount
-        },
-        accessToken: updatedUser.accessToken || null,
-        jwtToken: jwtToken,
-        sessionInfo: {
-          activeSessions: activeSessions.length,
-          maxConcurrentSessions: updatedUser.maxConcurrentSessions,
-          sessionLimitReached: sessionLimitReached
-        }
-      });
-
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
   }
 });
 
@@ -169,7 +96,6 @@ router.get('/profile', requireAuth, (req, res) => {
       username: req.user.username,
       email: req.user.email,
       instagramId: req.user.instagramId,
-      facebookId: req.user.facebookId,
       accountType: req.user.accountType,
       profilePic: req.user.profilePic,
       hasInstagramToken: !!req.user.accessToken,

@@ -184,7 +184,7 @@ const AddAutomation = () => {
             </p>
             <p className="text-gray-600">
               Rate Limit: <span className="font-medium text-gray-900">
-                {formData.conditions.maxExecutionsPerDay || 10}/day, {formData.cooldownMinutes || 5}min cooldown
+                {formData.conditions.maxExecutionsPerDay || 100000}/day, {formData.cooldownMinutes || 0}min cooldown
               </span>
             </p>
             <p className="text-gray-600">

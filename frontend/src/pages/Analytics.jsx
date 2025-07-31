@@ -17,6 +17,32 @@ import {
   PhotoIcon
 } from '@heroicons/react/24/outline';
 import useContentStore from '../store/contentStore';
+import WorkInProgress from '../components/WorkInProgress';
+import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const Analytics = () => {
   const { getAnalyticsStats } = useContentStore();
@@ -31,16 +57,30 @@ const Analytics = () => {
   });
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState('monthly');
+  const [chartData, setChartData] = useState({
+    engagement: null,
+    reach: null,
+    demographics: null,
+    performance: null
+  });
 
   useEffect(() => {
     fetchAnalytics();
   }, [timeframe]);
+  const isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'development';
+
+  useEffect(() => {
+    if (contentStats && analytics && !loading) {
+      generateChartData();
+    }
+  }, [contentStats, analytics, loading]);
 
   const fetchAnalytics = async () => {
     try {
       const [summaryRes, ordersRes, productsRes, engagementRes, revenueRes] = await Promise.all([
         axios.get('/analytics/summary'),
         axios.get('/analytics/orders'),
+        axios.get('/analytics/products'),
         axios.get('/analytics/engagement'),
         axios.get('/analytics/revenue')
       ]);
@@ -57,6 +97,110 @@ const Analytics = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const generateChartData = () => {
+    // Don't generate chart data if analytics is empty
+    if (!analytics || Object.keys(analytics).length === 0) {
+      return;
+    }
+    
+    // Generate sample data for charts
+    const dates = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    
+    // Engagement over time chart
+    const engagementData = {
+      labels: dates,
+      datasets: [
+        {
+          label: 'Likes',
+          data: [120, 190, 300, 500, 200, 300],
+          borderColor: 'rgb(255, 99, 132)',
+          backgroundColor: 'rgba(255, 99, 132, 0.5)',
+          tension: 0.1
+        },
+        {
+          label: 'Comments',
+          data: [20, 30, 50, 80, 40, 60],
+          borderColor: 'rgb(54, 162, 235)',
+          backgroundColor: 'rgba(54, 162, 235, 0.5)',
+          tension: 0.1
+        },
+        {
+          label: 'Shares',
+          data: [10, 15, 25, 40, 20, 30],
+          borderColor: 'rgb(75, 192, 192)',
+          backgroundColor: 'rgba(75, 192, 192, 0.5)',
+          tension: 0.1
+        }
+      ]
+    };
+
+    // Reach and impressions chart
+    const reachData = {
+      labels: dates,
+      datasets: [
+        {
+          label: 'Reach',
+          data: [1000, 1500, 2000, 3000, 2500, 3500],
+          backgroundColor: 'rgba(255, 99, 132, 0.8)',
+        },
+        {
+          label: 'Impressions',
+          data: [2000, 3000, 4000, 6000, 5000, 7000],
+          backgroundColor: 'rgba(54, 162, 235, 0.8)',
+        }
+      ]
+    };
+
+    // Demographics chart
+    const demographicsData = {
+      labels: ['18-24', '25-34', '35-44', '45+'],
+      datasets: [
+        {
+          data: [35, 28, 22, 15],
+          backgroundColor: [
+            'rgba(255, 99, 132, 0.8)',
+            'rgba(54, 162, 235, 0.8)',
+            'rgba(255, 205, 86, 0.8)',
+            'rgba(75, 192, 192, 0.8)',
+          ],
+          borderWidth: 1,
+        },
+      ],
+    };
+
+    // Performance distribution chart
+    const performanceData = {
+      labels: ['High Performing', 'Average', 'Underperforming'],
+      datasets: [
+        {
+          data: [contentStats?.highPerforming || 10, 15, contentStats?.underperforming || 5],
+          backgroundColor: [
+            'rgba(34, 197, 94, 0.8)',
+            'rgba(59, 130, 246, 0.8)',
+            'rgba(239, 68, 68, 0.8)',
+          ],
+          borderWidth: 1,
+        },
+      ],
+    };
+
+    // Only update chart data if it's different from current state
+    setChartData(prevData => {
+      const newData = {
+        engagement: engagementData,
+        reach: reachData,
+        demographics: demographicsData,
+        performance: performanceData
+      };
+      
+      // Check if data has actually changed
+      if (JSON.stringify(prevData) !== JSON.stringify(newData)) {
+        return newData;
+      }
+      return prevData;
+    });
   };
 
   const getMetricCard = (title, value, change, icon, color) => (
@@ -99,6 +243,10 @@ const Analytics = () => {
         <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-blue-600"></div>
       </div>
     );
+  }
+
+  if (!isDevelopment) {
+    return <WorkInProgress title="Analytics Dashboard" subtitle="Advanced analytics and insights are coming soon! We're building powerful tools to help you track your social media performance." />;
   }
 
   return (
@@ -264,23 +412,138 @@ const Analytics = () => {
         {/* Engagement Chart */}
         <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">Engagement Over Time</h3>
-          <div className="h-64 sm:h-80 bg-gray-50 rounded-lg flex items-center justify-center">
-            <div className="text-center">
-              <ChartBarIcon className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">Chart will be displayed here</p>
+          {chartData.engagement ? (
+            <div className="h-64 sm:h-80">
+              <Line 
+                data={chartData.engagement}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'top',
+                    },
+                    title: {
+                      display: false,
+                    },
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                    },
+                  },
+                }}
+              />
             </div>
-          </div>
+          ) : (
+            <div className="h-64 sm:h-80 bg-gray-50 rounded-lg flex items-center justify-center">
+              <div className="text-center">
+                <ChartBarIcon className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Loading chart data...</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Reach Chart */}
         <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">Reach & Impressions</h3>
-          <div className="h-64 sm:h-80 bg-gray-50 rounded-lg flex items-center justify-center">
-            <div className="text-center">
-              <ChartBarIcon className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">Chart will be displayed here</p>
+          {chartData.reach ? (
+            <div className="h-64 sm:h-80">
+              <Bar 
+                data={chartData.reach}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'top',
+                    },
+                    title: {
+                      display: false,
+                    },
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                    },
+                  },
+                }}
+              />
             </div>
-          </div>
+          ) : (
+            <div className="h-64 sm:h-80 bg-gray-50 rounded-lg flex items-center justify-center">
+              <div className="text-center">
+                <ChartBarIcon className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Loading chart data...</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Additional Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Demographics Chart */}
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">Audience Demographics</h3>
+          {chartData.demographics ? (
+            <div className="h-64 sm:h-80">
+              <Doughnut 
+                data={chartData.demographics}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'bottom',
+                    },
+                    title: {
+                      display: false,
+                    },
+                  },
+                }}
+              />
+            </div>
+          ) : (
+            <div className="h-64 sm:h-80 bg-gray-50 rounded-lg flex items-center justify-center">
+              <div className="text-center">
+                <ChartBarIcon className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Loading chart data...</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Performance Distribution Chart */}
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">Content Performance Distribution</h3>
+          {chartData.performance ? (
+            <div className="h-64 sm:h-80">
+              <Doughnut 
+                data={chartData.performance}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'bottom',
+                    },
+                    title: {
+                      display: false,
+                    },
+                  },
+                }}
+              />
+            </div>
+          ) : (
+            <div className="h-64 sm:h-80 bg-gray-50 rounded-lg flex items-center justify-center">
+              <div className="text-center">
+                <ChartBarIcon className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Loading chart data...</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -371,18 +634,7 @@ const Analytics = () => {
               <p className="text-xs sm:text-sm text-gray-500">Analyze campaign performance</p>
             </div>
           </Link>
-          <Link
-            to="/instagram-accounts"
-            className="flex items-center p-4 sm:p-6 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
-          >
-            <div className="p-2 sm:p-3 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
-              <UserGroupIcon className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
-            </div>
-            <div className="ml-3 sm:ml-4">
-              <p className="font-medium text-gray-900 text-sm sm:text-base">Account Insights</p>
-              <p className="text-xs sm:text-sm text-gray-500">View account analytics</p>
-            </div>
-          </Link>
+
           <Link
             to="/content"
             className="flex items-center p-4 sm:p-6 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"

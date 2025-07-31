@@ -20,17 +20,20 @@ import {
   ClockIcon,
   ComputerDesktopIcon,
   DevicePhoneMobileIcon,
-  DeviceTabletIcon
+  DeviceTabletIcon,
+  PhotoIcon,
+  SparklesIcon,
+  RocketLaunchIcon
 } from '@heroicons/react/24/outline';
 import useUserStore from '../store/userStore';
 import LogoutModal from '../components/LogoutModal';
 import SessionLimitModal from '../components/SessionLimitModal';
+import { getCurrentInstagramAccount, getInstagramConnectionStatus } from '../api';
 
 const AccountSettings = () => {
   const navigate = useNavigate();
   const { logout, logoutAllDevices, getSessionStatus, getActiveSessions, getRecentSessions, removeSession } = useUserStore();
   const [activeTab, setActiveTab] = useState('profile');
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -39,6 +42,44 @@ const AccountSettings = () => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const navRef = React.useRef(null);
+
+  // Instagram profile data (real data from API)
+  const [instagramProfile, setInstagramProfile] = useState(null);
+  const [instagramLoading, setInstagramLoading] = useState(true);
+  const [instagramError, setInstagramError] = useState(null);
+
+  // Fetch Instagram profile data
+
+  const fetchInstagramProfile = async () => {
+    try {
+      setInstagramLoading(true);
+      setInstagramError(null);
+      
+      // First check connection status
+      const connectionStatus = await getInstagramConnectionStatus();
+      if (connectionStatus?.data?.isConnected) {
+        // Fetch current Instagram account data
+        const accountData = await getCurrentInstagramAccount();
+        if(accountData?.data){
+          setInstagramProfile(accountData?.data);
+        }else{
+          setInstagramProfile(null);
+        }
+      } else {
+        setInstagramProfile(null);
+      }
+    } catch (error) {
+      console.error('Failed to fetch Instagram profile:', error);
+      setInstagramError('Failed to load Instagram profile data');
+      setInstagramProfile(null);
+    } finally {
+      setInstagramLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInstagramProfile();
+  }, []);
 
   // Fetch session information on component mount
   useEffect(() => {
@@ -84,22 +125,6 @@ const AccountSettings = () => {
     fetchRecentSessions();
   }, [getSessionStatus, getActiveSessions, getRecentSessions]);
 
-  const [profileData, setProfileData] = useState({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@example.com',
-    phone: '+1 (555) 123-4567',
-    company: 'My Business',
-    website: 'https://mybusiness.com',
-    bio: 'Social media manager and content creator'
-  });
-
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
-
   const [notificationSettings, setNotificationSettings] = useState({
     emailNotifications: true,
     pushNotifications: true,
@@ -109,40 +134,18 @@ const AccountSettings = () => {
     securityAlerts: true
   });
 
-  // Platform-specific settings from old Settings page
-  const [platformSettings, setPlatformSettings] = useState({
-    webhooks: {
-      enabled: true,
-      url: 'https://your-domain.com/api/webhooks/instagram',
-      verifyToken: 'your-verify-token'
-    },
-    automation: {
-      enabled: true,
-      maxExecutionsPerDay: 100
-    },
-    apiKeys: {
-      instagramClientId: '',
-      instagramClientSecret: '',
-      redirectUri: 'https://your-domain.com/api/auth/instagram/callback'
-    }
-  });
-
   const [subscriptionData, setSubscriptionData] = useState({
-    currentPlan: 'Pro',
-    planPrice: '$29/month',
-    nextBillingDate: '2024-02-15',
-    usage: {
-      campaigns: 12,
-      automations: 8,
-      accounts: 3,
-      storage: '2.5GB'
-    },
-    limits: {
-      campaigns: 50,
-      automations: 25,
-      accounts: 10,
-      storage: '10GB'
-    }
+    currentPlan: 'Free Plan',
+    planPrice: 'Limited Time Offer',
+    nextBillingDate: null,
+    features: [
+      'Unlimited campaigns',
+      'Unlimited automations',
+      'Unlimited content posts',
+      'Advanced analytics',
+      'Priority support',
+      'Custom integrations'
+    ]
   });
 
   const [sessionInfo, setSessionInfo] = useState({
@@ -161,30 +164,6 @@ const AccountSettings = () => {
   const [recentSessionsLoading, setRecentSessionsLoading] = useState(false);
   const [showSessionLimitModal, setShowSessionLimitModal] = useState(false);
 
-  const [connectedAccounts, setConnectedAccounts] = useState([
-    {
-      id: 1,
-      platform: 'Instagram',
-      username: '@mybusiness',
-      status: 'connected',
-      lastSync: '2024-01-15T10:30:00Z'
-    },
-    {
-      id: 2,
-      platform: 'Facebook',
-      username: 'My Business Page',
-      status: 'connected',
-      lastSync: '2024-01-14T15:45:00Z'
-    },
-    {
-      id: 3,
-      platform: 'Twitter',
-      username: '@mybusiness',
-      status: 'disconnected',
-      lastSync: null
-    }
-  ]);
-
   const [newTicket, setNewTicket] = useState({
     title: '',
     type: 'support',
@@ -192,111 +171,20 @@ const AccountSettings = () => {
     description: ''
   });
 
-  const [tickets, setTickets] = useState([
-    {
-      id: 1,
-      title: 'Instagram API Connection Issue',
-      type: 'bug',
-      priority: 'high',
-      status: 'open',
-      description: 'Having trouble connecting my Instagram account to the platform. Getting authentication errors.',
-      createdAt: '2024-01-10T09:00:00Z',
-      lastUpdated: '2024-01-12T14:30:00Z'
-    },
-    {
-      id: 2,
-      title: 'Feature Request: Bulk Campaign Creation',
-      type: 'feature',
-      priority: 'medium',
-      status: 'in_progress',
-      description: 'Would like to be able to create multiple campaigns at once instead of one by one.',
-      createdAt: '2024-01-08T11:00:00Z',
-      lastUpdated: '2024-01-11T16:45:00Z'
-    },
-    {
-      id: 3,
-      title: 'Automation Not Working',
-      type: 'support',
-      priority: 'urgent',
-      status: 'closed',
-      description: 'My automation rules are not triggering as expected. Need immediate assistance.',
-      createdAt: '2024-01-05T13:00:00Z',
-      lastUpdated: '2024-01-09T10:15:00Z'
-    }
-  ]);
-
   const tabs = [
     { id: 'profile', name: 'Profile', icon: UserIcon },
     { id: 'session', name: 'Session', icon: InformationCircleIcon },
     { id: 'security', name: 'Security', icon: ShieldCheckIcon },
     { id: 'notifications', name: 'Notifications', icon: BellIcon },
-    { id: 'platform', name: 'Platform Settings', icon: CogIcon },
-    { id: 'accounts', name: 'Connected Accounts', icon: UserGroupIcon },
     { id: 'subscription', name: 'Subscription', icon: CreditCardIcon },
     { id: 'tickets', name: 'Tickets', icon: QuestionMarkCircleIcon },
     { id: 'help', name: 'Help & Support', icon: InformationCircleIcon }
   ];
 
-  const handleProfileUpdate = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setMessage({ type: 'success', text: 'Profile updated successfully!' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to update profile' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePasswordChange = async (e) => {
-    e.preventDefault();
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setMessage({ type: 'error', text: 'New passwords do not match' });
-      return;
-    }
-    setLoading(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setMessage({ type: 'success', text: 'Password changed successfully!' });
-      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to change password' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePlatformSettingsSave = async () => {
-    setSaving(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setMessage({ type: 'success', text: 'Platform settings saved successfully!' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to save platform settings' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleNotificationToggle = (key) => {
     setNotificationSettings(prev => ({
       ...prev,
       [key]: !prev[key]
-    }));
-  };
-
-  const handlePlatformSettingChange = (section, key, value) => {
-    setPlatformSettings(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        [key]: value
-      }
     }));
   };
 
@@ -404,92 +292,107 @@ const AccountSettings = () => {
     return () => window.removeEventListener('resize', checkScrollButtons);
   }, []);
 
-  const handleDisconnectAccount = (accountId) => {
-    if (window.confirm('Are you sure you want to disconnect this account?')) {
-      setConnectedAccounts(prev => prev.filter(acc => acc.id !== accountId));
-    }
-  };
-
   const renderProfile = () => (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">Personal Information</h3>
-        <form onSubmit={handleProfileUpdate} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
-              <input
-                type="text"
-                value={profileData.firstName}
-                onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
-              <input
-                type="text"
-                value={profileData.lastName}
-                onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center">
+            <PhotoIcon className="h-6 w-6 text-pink-500 mr-2" />
+            <h3 className="text-lg font-semibold text-gray-900">Instagram Profile</h3>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-            <input
-              type="email"
-              value={profileData.email}
-              onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-            <input
-              type="tel"
-              value={profileData.phone}
-              onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Company</label>
-            <input
-              type="text"
-              value={profileData.company}
-              onChange={(e) => setProfileData(prev => ({ ...prev, company: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
-            <input
-              type="url"
-              value={profileData.website}
-              onChange={(e) => setProfileData(prev => ({ ...prev, website: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
-            <textarea
-              value={profileData.bio}
-              onChange={(e) => setProfileData(prev => ({ ...prev, bio: e.target.value }))}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div className="flex justify-end">
+          {!instagramLoading && (
             <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              onClick={async () => {
+                try {
+                  setInstagramLoading(true);
+                  setInstagramError(null);
+                  fetchInstagramProfile();
+
+                } catch (error) {
+                  console.error('Failed to refresh Instagram profile:', error);
+                  setInstagramError('Failed to refresh Instagram profile data');
+                } finally {
+                  setInstagramLoading(false);
+                }
+              }}
+              className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center"
             >
-              {loading ? 'Saving...' : 'Save Changes'}
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
             </button>
+          )}
+        </div>
+        
+        {instagramLoading ? (
+          <div className="text-center py-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-sm text-gray-600">Loading Instagram profile...</p>
           </div>
-        </form>
+        ) : instagramError ? (
+          <div className="text-center py-4 text-red-600">
+            <ExclamationTriangleIcon className="h-6 w-6 mx-auto mb-2" />
+            <p>{instagramError}</p>
+          </div>
+        ) : instagramProfile ? (
+          <>
+            <div className="flex items-start space-x-6 mb-6">
+              <img 
+                src={instagramProfile?.profilePic || 'https://via.placeholder.com/150'} 
+                alt="Profile" 
+                className="w-20 h-20 rounded-full object-cover border-4 border-gray-100"
+              />
+              <div className="flex-1">
+                <div className="flex items-center space-x-2 mb-2">
+                  <h4 className="text-xl font-bold text-gray-900">{instagramProfile?.username || 'N/A'}</h4>
+                  {instagramProfile?.isVerified && (
+                    <SparklesIcon className="h-5 w-5 text-blue-500" />
+                  )}
+                </div>
+                <p className="text-gray-600 mb-2">{instagramProfile?.fullName || 'N/A'}</p>
+                <p className="text-sm text-gray-500 mb-3">{instagramProfile?.bio || 'N/A'}</p>
+                <div className="flex space-x-6 text-sm">
+                  <span><strong>{instagramProfile?.posts || 'N/A'}</strong> posts</span>
+                  <span><strong>{instagramProfile?.followers || 'N/A'}</strong> followers</span>
+                  <span><strong>{instagramProfile?.following || 'N/A'}</strong> following</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between text-sm text-gray-500 border-t border-gray-100 pt-4">
+              <div className="flex items-center space-x-4">
+                <span className="flex items-center">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                  {instagramProfile?.accountType || 'N/A'}
+                </span>
+                <span className="flex items-center">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Connected {instagramProfile?.connectedAt ? new Date(instagramProfile.connectedAt).toLocaleDateString() : 'N/A'}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+              <div className="flex items-center">
+                <InformationCircleIcon className="h-5 w-5 text-blue-600 mr-2" />
+                <p className="text-sm text-blue-800">
+                  This profile information is synced from your Instagram account and cannot be edited here. 
+                  To update your profile, please make changes directly on Instagram.
+                </p>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <p>No Instagram account connected or profile data available.</p>
+            <p>Please connect your Instagram account in the Security section.</p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -680,57 +583,6 @@ const AccountSettings = () => {
   const renderSecurity = () => (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">Change Password</h3>
-        <form onSubmit={handlePasswordChange} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={passwordData.currentPassword}
-                onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-1 p-3"
-              >
-                {showPassword ? <EyeSlashIcon className="h-5 w-5 text-gray-400" /> : <EyeIcon className="h-5 w-5 text-gray-400" />}
-              </button>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
-            <input
-              type="password"
-              value={passwordData.newPassword}
-              onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
-            <input
-              type="password"
-              value={passwordData.confirmPassword}
-              onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? 'Changing...' : 'Change Password'}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-6">Account Actions</h3>
         <div className="space-y-4">
           <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
@@ -797,267 +649,44 @@ const AccountSettings = () => {
     </div>
   );
 
-  const renderPlatformSettings = () => (
-    <div className="space-y-6">
-      {/* Webhooks */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center mb-4">
-          <GlobeAltIcon className="h-6 w-6 text-green-500 mr-2" />
-          <h3 className="text-lg font-medium text-gray-900">Webhooks</h3>
-        </div>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <label className="text-sm font-medium text-gray-700">Enable Webhooks</label>
-              <p className="text-sm text-gray-500">Receive real-time updates from Instagram</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={platformSettings.webhooks.enabled}
-              onChange={(e) => handlePlatformSettingChange('webhooks', 'enabled', e.target.checked)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Webhook URL</label>
-            <input
-              type="url"
-              value={platformSettings.webhooks.url}
-              onChange={(e) => handlePlatformSettingChange('webhooks', 'url', e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-              placeholder="https://your-domain.com/api/webhooks/instagram"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Verify Token</label>
-            <input
-              type="text"
-              value={platformSettings.webhooks.verifyToken}
-              onChange={(e) => handlePlatformSettingChange('webhooks', 'verifyToken', e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-              placeholder="your-verify-token"
-            />
-          </div>
-        </div>
-      </div>
 
-      {/* Automation */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center mb-4">
-          <CogIcon className="h-6 w-6 text-purple-500 mr-2" />
-          <h3 className="text-lg font-medium text-gray-900">Automation</h3>
-        </div>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <label className="text-sm font-medium text-gray-700">Enable Automation</label>
-              <p className="text-sm text-gray-500">Allow automated responses to Instagram interactions</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={platformSettings.automation.enabled}
-              onChange={(e) => handlePlatformSettingChange('automation', 'enabled', e.target.checked)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Max Executions Per Day</label>
-            <input
-              type="number"
-              value={platformSettings.automation.maxExecutionsPerDay}
-              onChange={(e) => handlePlatformSettingChange('automation', 'maxExecutionsPerDay', parseInt(e.target.value))}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-              min="1"
-              max="1000"
-            />
-            <p className="text-sm text-gray-500 mt-1">Limit the number of automated responses per day</p>
-          </div>
-        </div>
-      </div>
 
-      {/* API Configuration */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center mb-4">
-          <KeyIcon className="h-6 w-6 text-yellow-500 mr-2" />
-          <h3 className="text-lg font-medium text-gray-900">API Configuration</h3>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Instagram Client ID</label>
-            <input
-              type="text"
-              value={platformSettings.apiKeys.instagramClientId}
-              onChange={(e) => handlePlatformSettingChange('apiKeys', 'instagramClientId', e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-              placeholder="Your Instagram App Client ID"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Instagram Client Secret</label>
-            <input
-              type="password"
-              value={platformSettings.apiKeys.instagramClientSecret}
-              onChange={(e) => handlePlatformSettingChange('apiKeys', 'instagramClientSecret', e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-              placeholder="Your Instagram App Client Secret"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Redirect URI</label>
-            <input
-              type="url"
-              value={platformSettings.apiKeys.redirectUri}
-              onChange={(e) => handlePlatformSettingChange('apiKeys', 'redirectUri', e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-              placeholder="https://your-domain.com/api/auth/instagram/callback"
-            />
-          </div>
-        </div>
-      </div>
 
-      <div className="flex justify-end">
-        <button
-          onClick={handlePlatformSettingsSave}
-          disabled={saving}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-        >
-          {saving ? 'Saving...' : 'Save Platform Settings'}
-        </button>
-      </div>
-    </div>
-  );
-
-  const renderConnectedAccounts = () => (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-6">Connected Social Media Accounts</h3>
-      <div className="space-y-4">
-        {connectedAccounts.map((account) => (
-          <div key={account.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-            <div className="flex items-center">
-              <div className={`p-2 rounded-lg ${
-                account.status === 'connected' ? 'bg-green-100' : 'bg-gray-100'
-              }`}>
-                <UserGroupIcon className={`h-5 w-5 ${
-                  account.status === 'connected' ? 'text-green-600' : 'text-gray-400'
-                }`} />
-              </div>
-              <div className="ml-3">
-                <h4 className="text-sm font-medium text-gray-900">{account.platform}</h4>
-                <p className="text-sm text-gray-500">{account.username}</p>
-                {account.lastSync && (
-                  <p className="text-xs text-gray-400">
-                    Last sync: {new Date(account.lastSync).toLocaleDateString()}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                account.status === 'connected' 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-yellow-100 text-yellow-800'
-              }`}>
-                {account.status}
-              </span>
-              {account.status === 'connected' && (
-                <button
-                  onClick={() => handleDisconnectAccount(account.id)}
-                  className="text-sm text-red-600 hover:text-red-700"
-                >
-                  Disconnect
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 
   const renderSubscription = () => (
     <div className="space-y-6">
       {/* Current Plan */}
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-6">Current Subscription</h3>
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-6 text-white">
+        <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-xl font-semibold">{subscriptionData.currentPlan} Plan</h4>
-              <p className="text-blue-100">{subscriptionData.planPrice}</p>
+              <h4 className="text-xl font-semibold">{subscriptionData.currentPlan}</h4>
+              <p className="text-green-100">{subscriptionData.planPrice}</p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-blue-100">Next billing</p>
-              <p className="font-medium">{new Date(subscriptionData.nextBillingDate).toLocaleDateString()}</p>
+              <SparklesIcon className="h-8 w-8 text-green-100" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Usage Stats */}
+      {/* Features */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">Usage & Limits</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-gray-600">Campaigns</span>
-                <span className="text-gray-900">{subscriptionData.usage.campaigns} / {subscriptionData.limits.campaigns}</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full" 
-                  style={{ width: `${(subscriptionData.usage.campaigns / subscriptionData.limits.campaigns) * 100}%` }}
-                ></div>
-              </div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">Your Plan Features</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {subscriptionData.features.map((feature, index) => (
+            <div key={index} className="flex items-center space-x-3">
+              <CheckCircleIcon className="h-5 w-5 text-green-500 flex-shrink-0" />
+              <span className="text-sm text-gray-700">{feature}</span>
             </div>
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-gray-600">Automations</span>
-                <span className="text-gray-900">{subscriptionData.usage.automations} / {subscriptionData.limits.automations}</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-green-600 h-2 rounded-full" 
-                  style={{ width: `${(subscriptionData.usage.automations / subscriptionData.limits.automations) * 100}%` }}
-                ></div>
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-gray-600">Connected Accounts</span>
-                <span className="text-gray-900">{subscriptionData.usage.accounts} / {subscriptionData.limits.accounts}</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-purple-600 h-2 rounded-full" 
-                  style={{ width: `${(subscriptionData.usage.accounts / subscriptionData.limits.accounts) * 100}%` }}
-                ></div>
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-gray-600">Storage</span>
-                <span className="text-gray-900">{subscriptionData.usage.storage} / {subscriptionData.limits.storage}</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-yellow-600 h-2 rounded-full" 
-                  style={{ width: '25%' }}
-                ></div>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* Plan Options */}
+      {/* Future Plans */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">Available Plans</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">Future Plans (Coming Soon)</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="border border-gray-200 rounded-lg p-6">
             <h4 className="text-lg font-semibold text-gray-900">Starter</h4>
@@ -1065,24 +694,24 @@ const AccountSettings = () => {
             <ul className="mt-4 space-y-2 text-sm text-gray-600">
               <li>• 10 campaigns</li>
               <li>• 5 automations</li>
-              <li>• 2 connected accounts</li>
-              <li>• 1GB storage</li>
+              <li>• Basic analytics</li>
+              <li>• Email support</li>
             </ul>
-            <button className="w-full mt-4 px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-              Current Plan
+            <button className="w-full mt-4 px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50" disabled>
+              Coming Soon
             </button>
           </div>
-          <div className="border-2 border-blue-500 rounded-lg p-6 bg-blue-50">
+          <div className="border border-gray-200 rounded-lg p-6">
             <h4 className="text-lg font-semibold text-gray-900">Pro</h4>
             <p className="text-3xl font-bold text-gray-900">$29<span className="text-sm font-normal text-gray-500">/month</span></p>
             <ul className="mt-4 space-y-2 text-sm text-gray-600">
               <li>• 50 campaigns</li>
               <li>• 25 automations</li>
-              <li>• 10 connected accounts</li>
-              <li>• 10GB storage</li>
+              <li>• Advanced analytics</li>
+              <li>• Priority support</li>
             </ul>
-            <button className="w-full mt-4 px-4 py-2 bg-blue-600 text-sm font-medium rounded-md text-white hover:bg-blue-700">
-              Current Plan
+            <button className="w-full mt-4 px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50" disabled>
+              Coming Soon
             </button>
           </div>
           <div className="border border-gray-200 rounded-lg p-6">
@@ -1091,12 +720,22 @@ const AccountSettings = () => {
             <ul className="mt-4 space-y-2 text-sm text-gray-600">
               <li>• Unlimited campaigns</li>
               <li>• Unlimited automations</li>
-              <li>• Unlimited accounts</li>
-              <li>• 100GB storage</li>
+              <li>• Custom integrations</li>
+              <li>• Dedicated support</li>
             </ul>
-            <button className="w-full mt-4 px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-              Upgrade
+            <button className="w-full mt-4 px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50" disabled>
+              Coming Soon
             </button>
+          </div>
+        </div>
+        
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+          <div className="flex items-center">
+            <InformationCircleIcon className="h-5 w-5 text-blue-600 mr-2" />
+            <p className="text-sm text-blue-800">
+              You're currently on our unlimited free plan! We're working on premium features for the future. 
+              Stay tuned for updates on our paid plans.
+            </p>
           </div>
         </div>
       </div>
@@ -1105,135 +744,86 @@ const AccountSettings = () => {
 
   const renderTickets = () => (
     <div className="space-y-6">
-      {/* Create New Ticket */}
+      {/* Coming Soon */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">Create New Ticket</h3>
-        <form className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
-              <input
-                type="text"
-                value={newTicket.title}
-                onChange={(e) => setNewTicket(prev => ({ ...prev, title: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Brief description of your issue"
-              />
+        <div className="text-center py-8">
+          <RocketLaunchIcon className="h-16 w-16 text-blue-500 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Support Tickets</h3>
+          <p className="text-gray-600 mb-6 max-w-md mx-auto">
+            Our comprehensive support ticket system is coming soon! You'll be able to create tickets, 
+            track their status, and get help from our team.
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+            <div className="p-4 border border-gray-200 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-2">Create Tickets</h4>
+              <p className="text-sm text-gray-600">Submit support requests, bug reports, and feature requests</p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
-              <select
-                value={newTicket.type}
-                onChange={(e) => setNewTicket(prev => ({ ...prev, type: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="support">Support</option>
-                <option value="bug">Bug Report</option>
-                <option value="feature">Feature Request</option>
-                <option value="complaint">Complaint</option>
-                <option value="suggestion">Suggestion</option>
-              </select>
+            <div className="p-4 border border-gray-200 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-2">Track Progress</h4>
+              <p className="text-sm text-gray-600">Monitor ticket status and get updates in real-time</p>
+            </div>
+            <div className="p-4 border border-gray-200 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-2">Priority Support</h4>
+              <p className="text-sm text-gray-600">Get faster responses for urgent issues</p>
+            </div>
+            <div className="p-4 border border-gray-200 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-2">Knowledge Base</h4>
+              <p className="text-sm text-gray-600">Access helpful articles and tutorials</p>
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-            <select
-              value={newTicket.priority}
-              onChange={(e) => setNewTicket(prev => ({ ...prev, priority: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-            <textarea
-              value={newTicket.description}
-              onChange={(e) => setNewTicket(prev => ({ ...prev, description: e.target.value }))}
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Please provide detailed information about your issue, suggestion, or complaint..."
-            />
-          </div>
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Submit Ticket
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* Existing Tickets */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">Your Tickets</h3>
-        <div className="space-y-4">
-          {tickets.map((ticket) => (
-            <div key={ticket.id} className="border border-gray-200 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-medium text-gray-900">{ticket.title}</h4>
-                <div className="flex items-center space-x-2">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    ticket.status === 'open' ? 'bg-red-100 text-red-800' :
-                    ticket.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-green-100 text-green-800'
-                  }`}>
-                    {ticket.status.replace('_', ' ')}
-                  </span>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    ticket.priority === 'urgent' ? 'bg-red-100 text-red-800' :
-                    ticket.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                    ticket.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {ticket.priority}
-                  </span>
-                </div>
-              </div>
-              <p className="text-sm text-gray-600 mb-2">{ticket.description}</p>
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>Created: {new Date(ticket.createdAt).toLocaleDateString()}</span>
-                <span>Updated: {new Date(ticket.lastUpdated).toLocaleDateString()}</span>
-              </div>
+          
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg max-w-md mx-auto">
+            <div className="flex items-center">
+              <InformationCircleIcon className="h-5 w-5 text-blue-600 mr-2" />
+              <p className="text-sm text-blue-800">
+                For now, please contact us directly at support@sociohiro.com for any issues or questions.
+              </p>
             </div>
-          ))}
+          </div>
         </div>
       </div>
     </div>
   );
 
   const renderHelp = () => (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-6">Help & Support</h3>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-          <div className="flex items-center">
-            <QuestionMarkCircleIcon className="h-5 w-5 text-blue-600 mr-3" />
-            <div>
-              <h4 className="text-sm font-medium text-gray-900">Documentation</h4>
-              <p className="text-sm text-gray-500">Read our guides and tutorials</p>
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="text-center py-8">
+          <QuestionMarkCircleIcon className="h-16 w-16 text-blue-500 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Help & Support</h3>
+          <p className="text-gray-600 mb-6 max-w-md mx-auto">
+            Our comprehensive help and support system is coming soon! You'll have access to documentation, 
+            tutorials, and direct support channels.
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+            <div className="p-4 border border-gray-200 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-2">Documentation</h4>
+              <p className="text-sm text-gray-600">Comprehensive guides and tutorials</p>
+            </div>
+            <div className="p-4 border border-gray-200 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-2">Video Tutorials</h4>
+              <p className="text-sm text-gray-600">Step-by-step video guides</p>
+            </div>
+            <div className="p-4 border border-gray-200 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-2">Live Chat</h4>
+              <p className="text-sm text-gray-600">Get instant help from our team</p>
+            </div>
+            <div className="p-4 border border-gray-200 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-2">Community Forum</h4>
+              <p className="text-sm text-gray-600">Connect with other users</p>
             </div>
           </div>
-          <button className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700">
-            View
-          </button>
-        </div>
-        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-          <div className="flex items-center">
-            <InformationCircleIcon className="h-5 w-5 text-green-600 mr-3" />
-            <div>
-              <h4 className="text-sm font-medium text-gray-900">Contact Support</h4>
-              <p className="text-sm text-gray-500">Get help from our team</p>
+          
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg max-w-md mx-auto">
+            <div className="flex items-center">
+              <InformationCircleIcon className="h-5 w-5 text-blue-600 mr-2" />
+              <p className="text-sm text-blue-800">
+                For now, please contact us at support@sociohiro.com for help and support.
+              </p>
             </div>
           </div>
-          <button className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700">
-            Contact
-          </button>
         </div>
       </div>
     </div>
@@ -1340,8 +930,6 @@ const AccountSettings = () => {
         {activeTab === 'session' && renderSessionInfo()}
         {activeTab === 'security' && renderSecurity()}
         {activeTab === 'notifications' && renderNotifications()}
-        {activeTab === 'platform' && renderPlatformSettings()}
-        {activeTab === 'accounts' && renderConnectedAccounts()}
         {activeTab === 'subscription' && renderSubscription()}
         {activeTab === 'tickets' && renderTickets()}
         {activeTab === 'help' && renderHelp()}

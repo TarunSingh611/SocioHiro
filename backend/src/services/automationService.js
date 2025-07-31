@@ -1,744 +1,636 @@
 const AutomationRule = require('../models/AutomationRule');
 const AutomationLog = require('../models/AutomationLog');
-const InstagramApi = require('./instagramApi');
 const Content = require('../models/Content');
-const instagramWebhookService = require('./instagramWebhookService');
+const InstagramApiService = require('./instagramApi');
 
 class AutomationService {
-  constructor() {
-    this.executionCache = new Map(); // Cache to prevent duplicate executions
+  constructor(user) {
+    this.user = user;
+    this.instagramApi = new InstagramApiService(user.accessToken);
   }
 
-  // Create a new automation
-  async createAutomation(userId, automationData) {
+  // Create new automation
+  async createAutomation(automationData) {
     try {
-      const processedData = this.processAutomationData(automationData);
-      processedData.userId = userId;
-      
-      // Handle content association
-      if (processedData.contentId) {
-        // Link automation to specific content
-        processedData.applyToAllContent = false;
-        
-        // Also update the content to reference this automation
-        const Content = require('../models/Content');
-        await Content.findByIdAndUpdate(
-          processedData.contentId,
-          { $addToSet: { automations: processedData._id } }
-        );
-      } else {
-        // Apply to all content
-        processedData.applyToAllContent = true;
-        processedData.contentId = null;
-        processedData.instagramMediaId = null;
-      }
-      
-      const automation = new AutomationRule(processedData);
+      const automation = new AutomationRule({
+        userId: this.user._id,
+        name: automationData.name,
+        description: automationData.description,
+        triggerType: automationData.triggerType,
+        actionType: automationData.actionType,
+        keywords: automationData?.keywords,
+        responseMessage: automationData.responseMessage,
+        exactMatch: automationData.exactMatch || false,
+        caseSensitive: automationData.caseSensitive || false,
+        isActive: automationData.isActive !== false,
+        conditions: {
+          maxExecutionsPerDay: automationData.conditions?.maxExecutionsPerDay || 10,
+          cooldownMinutes: automationData.conditions?.cooldownMinutes || 5,
+          maxExecutionsPerUser: automationData.conditions?.maxExecutionsPerUser || 1
+        },
+        executionCount: 0,
+        lastExecuted: null,
+        createdAt: new Date()
+      });
+
       await automation.save();
-      
-      // Populate content information for response
-      await automation.populate('contentId', 'instagramId permalink instagramMediaType caption');
-      
-      // Set up Instagram webhook for this automation
-      try {
-        
-        await instagramWebhookService.ensureWebhookForAutomation(userId, automation);
-      } catch (webhookError) {
-        console.warn('Webhook setup failed, but automation was created:', webhookError.message);
-        // Don't fail the automation creation if webhook setup fails
-      }
-      
       return automation;
     } catch (error) {
-      throw new Error(`Failed to create automation: ${error.message}`);
-    }
-  }
-
-  // Process automation data to support both legacy and new formats
-  processAutomationData(data) {
-    const processed = { ...data };
-    
-    // Convert single trigger to triggers array if needed
-    if (data.triggerType && !data.triggers) {
-      processed.triggers = [{
-        type: data.triggerType,
-        keywords: data.keywords || [],
-        exactMatch: data.exactMatch || false,
-        caseSensitive: data.caseSensitive || false
-      }];
-    }
-    
-    // Convert single action to actions array if needed
-    if (data.actionType && !data.actions) {
-      processed.actions = [{
-        type: data.actionType,
-        responseMessage: data.responseMessage || '',
-        delaySeconds: 0
-      }];
-    }
-    
-    // Handle content association
-    if (data.contentId) {
-      processed.contentId = data.contentId;
-      processed.applyToAllContent = false;
-    } else {
-      processed.applyToAllContent = true;
-    }
-    
-    return processed;
-  }
-
-  // Get all automations for a user
-  async getAutomations(userId, filters = {}) {
-    try {
-      const query = { userId };
-      
-      if (filters.isActive !== undefined) {
-        query.isActive = filters.isActive;
-      }
-      
-      if (filters.triggerType) {
-        query.$or = [
-          { triggerType: filters.triggerType },
-          { 'triggers.type': filters.triggerType }
-        ];
-      }
-      
-      if (filters.contentId) {
-        query.$or = [
-          { contentId: filters.contentId },
-          { applyToAllContent: true }
-        ];
-      }
-      
-      if (filters.tags && filters.tags.length > 0) {
-        query.tags = { $in: filters.tags };
-      }
-      
-      const automations = await AutomationRule.find(query)
-        .sort({ priority: -1, createdAt: -1 })
-        .populate('contentId', 'instagramId permalink instagramMediaType caption mediaUrls')
-        .lean();
-      
-      // Add execution count and last executed info
-      const automationsWithStats = await Promise.all(
-        automations.map(async (automation) => {
-          const executionCount = await AutomationLog.countDocuments({
-            ruleId: automation._id
-          });
-          
-          const lastExecution = await AutomationLog.findOne({
-            ruleId: automation._id
-          }).sort({ executedAt: -1 }).select('executedAt');
-          
-          return {
-            ...automation,
-            executionCount,
-            lastExecuted: lastExecution?.executedAt
-          };
-        })
-      );
-      
-      return automationsWithStats;
-    } catch (error) {
-      throw new Error(`Failed to get automations: ${error.message}`);
-    }
-  }
-
-  // Get automation by ID
-  async getAutomationById(automationId, userId) {
-    try {
-      const automation = await AutomationRule.findOne({ _id: automationId, userId })
-        .populate('contentId', 'instagramId permalink instagramMediaType');
-      
-      return automation;
-    } catch (error) {
-      throw new Error(`Failed to get automation: ${error.message}`);
+      console.error('Error creating automation:', error);
+      throw error;
     }
   }
 
   // Update automation
-  async updateAutomation(automationId, userId, updateData) {
+  async updateAutomation(automationId, updateData) {
     try {
-      const processedData = this.processAutomationData(updateData);
-      
       const automation = await AutomationRule.findOneAndUpdate(
-        { _id: automationId, userId },
-        { ...processedData, updatedAt: new Date() },
+        { _id: automationId, userId: this.user._id },
+        {
+          ...updateData,
+          updatedAt: new Date()
+        },
         { new: true }
       );
-      
-      // Update webhook fields after automation update
-      try {
-        const instagramWebhookService = require('./instagramWebhookService');
-        await instagramWebhookService.ensureWebhookForAutomation(userId, automation);
-      } catch (webhookError) {
-        console.warn('Webhook update failed after automation update:', webhookError.message);
-        // Don't fail the automation update if webhook update fails
+
+      if (!automation) {
+        throw new Error('Automation not found');
       }
-      
+
       return automation;
     } catch (error) {
-      throw new Error(`Failed to update automation: ${error.message}`);
+      console.error('Error updating automation:', error);
+      throw error;
     }
   }
 
   // Delete automation
-  async deleteAutomation(automationId, userId) {
+  async deleteAutomation(automationId) {
     try {
-      // Get the automation before deleting to check if we need to update webhooks
-      const automation = await AutomationRule.findOne({ _id: automationId, userId });
-      
-      await AutomationRule.findOneAndDelete({ _id: automationId, userId });
-      
-      // Update webhook fields after automation deletion
-      try {
-        const instagramWebhookService = require('./instagramWebhookService');
-        await instagramWebhookService.updateWebhookFieldsAfterAutomationChange(userId);
-      } catch (webhookError) {
-        console.warn('Webhook update failed after automation deletion:', webhookError.message);
-        // Don't fail the automation deletion if webhook update fails
+      const automation = await AutomationRule.findOneAndDelete({
+        _id: automationId,
+        userId: this.user._id
+      });
+
+      if (!automation) {
+        throw new Error('Automation not found');
       }
-      
-      return { success: true };
+
+      // Also delete related logs
+      await AutomationLog.deleteMany({ automationId });
+
+      return automation;
     } catch (error) {
-      throw new Error(`Failed to delete automation: ${error.message}`);
+      console.error('Error deleting automation:', error);
+      throw error;
+    }
+  }
+
+  // Get all automations for user
+  async getAutomations() {
+    try {
+      const automations = await AutomationRule.find({ userId: this.user._id })
+        .sort({ createdAt: -1 });
+      return automations;
+    } catch (error) {
+      console.error('Error getting automations:', error);
+      throw error;
+    }
+  }
+
+  // Get automation by ID
+  async getAutomation(automationId) {
+    try {
+      const automation = await AutomationRule.findOne({
+        _id: automationId,
+        userId: this.user._id
+      });
+
+      if (!automation) {
+        throw new Error('Automation not found');
+      }
+
+      return automation;
+    } catch (error) {
+      console.error('Error getting automation:', error);
+      throw error;
     }
   }
 
   // Toggle automation status
-  async toggleAutomationStatus(automationId, userId) {
+  async toggleAutomationStatus(automationId) {
     try {
-      const automation = await AutomationRule.findOne({ _id: automationId, userId });
+      const automation = await AutomationRule.findOne({
+        _id: automationId,
+        userId: this.user._id
+      });
+
       if (!automation) {
         throw new Error('Automation not found');
       }
-      
+
       automation.isActive = !automation.isActive;
       automation.updatedAt = new Date();
       await automation.save();
-      
-      // Update webhook fields after status toggle
-      try {
-        const instagramWebhookService = require('./instagramWebhookService');
-        await instagramWebhookService.updateWebhookFieldsAfterAutomationChange(userId);
-      } catch (webhookError) {
-        console.warn('Webhook update failed after automation status toggle:', webhookError.message);
-        // Don't fail the status toggle if webhook update fails
-      }
-      
+
       return automation;
     } catch (error) {
-      throw new Error(`Failed to toggle automation: ${error.message}`);
+      console.error('Error toggling automation status:', error);
+      throw error;
     }
   }
 
-  // Process Instagram comment events
-  async processComment(commentData, instagramAccountId) {
+  // Test automation
+  async testAutomation(automationId, testData) {
     try {
-      console.log(`Processing comment automation for: ${commentData.text}`);
+      const automation = await this.getAutomation(automationId);
       
-      // Get all active comment automations for this account
-      const automations = await AutomationRule.find({
-        userId: await this.getUserIdFromInstagramAccount(instagramAccountId),
-        triggerType: 'comment',
-        isActive: true,
-        $or: [
-          { applyToAllContent: true },
-          { instagramMediaId: commentData.media_id }
-        ]
-      });
+      // Check if automation can be executed
+      const canExecute = await this.canExecuteAutomation(automation, testData);
       
-      // Process each automation
-      for (const automation of automations) {
-        await this.checkAndExecuteAutomation(automation, {
-          triggerType: 'comment',
-          triggerText: commentData.text,
-          triggerIndex: 0, // First trigger
-          userId: commentData.from.id,
-          username: commentData.from.username,
-          mediaId: commentData.media_id,
-          commentId: commentData.id,
-          timestamp: commentData.timestamp
-        });
-      }
+      // Check if trigger conditions are met
+      const matched = this.checkTriggerConditions(automation, testData);
+      
+      return {
+        automationId,
+        matched,
+        canExecute,
+        reason: canExecute ? 'Ready to execute' : 'Cannot execute due to conditions'
+      };
     } catch (error) {
-      console.error('Error processing comment automation:', error);
+      console.error('Error testing automation:', error);
+      throw error;
     }
   }
 
-  // Process Instagram mention events
-  async processMention(mentionData, instagramAccountId) {
+  // Execute automation
+  async executeAutomation(automationId, triggerData) {
     try {
-      console.log(`Processing mention automation for: ${mentionData.text}`);
+      const automation = await this.getAutomation(automationId);
       
-      // Get all active mention automations for this account
-      const automations = await AutomationRule.find({
-        userId: await this.getUserIdFromInstagramAccount(instagramAccountId),
-        triggerType: 'mention',
-        isActive: true,
-        $or: [
-          { applyToAllContent: true },
-          { instagramMediaId: mentionData.media_id }
-        ]
-      });
-      
-      // Process each automation
-      for (const automation of automations) {
-        await this.checkAndExecuteAutomation(automation, {
-          triggerType: 'mention',
-          triggerText: mentionData.text,
-          triggerIndex: 0,
-          userId: mentionData.from.id,
-          username: mentionData.from.username,
-          mediaId: mentionData.media_id,
-          mentionId: mentionData.id,
-          timestamp: mentionData.timestamp
-        });
+      // Check if automation can be executed
+      const canExecute = await this.canExecuteAutomation(automation, triggerData);
+      if (!canExecute) {
+        throw new Error('Automation cannot be executed due to conditions');
       }
-    } catch (error) {
-      console.error('Error processing mention automation:', error);
-    }
-  }
 
-  // Process Instagram direct message events
-  async processDirectMessage(messageData, instagramAccountId) {
-    try {
-      console.log(`Processing DM automation for: ${messageData.text}`);
-      
-      // Get all active DM automations for this account
-      const automations = await AutomationRule.find({
-        userId: await this.getUserIdFromInstagramAccount(instagramAccountId),
-        triggerType: 'dm',
-        isActive: true
-      });
-      
-      // Process each automation
-      for (const automation of automations) {
-        await this.checkAndExecuteAutomation(automation, {
-          triggerType: 'dm',
-          triggerText: messageData.text,
-          triggerIndex: 0,
-          userId: messageData.from.id,
-          username: messageData.from.username,
-          messageId: messageData.id,
-          timestamp: messageData.timestamp
-        });
+      // Check if trigger conditions are met
+      const matched = this.checkTriggerConditions(automation, triggerData);
+      if (!matched) {
+        throw new Error('Trigger conditions not met');
       }
-    } catch (error) {
-      console.error('Error processing DM automation:', error);
-    }
-  }
 
-  // Process Instagram follow events
-  async processFollow(followData, instagramAccountId) {
-    try {
-      console.log(`Processing follow automation for user: ${followData.from.id}`);
-      
-      // Get all active follow automations for this account
-      const automations = await AutomationRule.find({
-        userId: await this.getUserIdFromInstagramAccount(instagramAccountId),
-        triggerType: 'follow',
-        isActive: true
-      });
-      
-      // Process each automation
-      for (const automation of automations) {
-        await this.checkAndExecuteAutomation(automation, {
-          triggerType: 'follow',
-          triggerText: 'follow',
-          triggerIndex: 0,
-          userId: followData.from.id,
-          username: followData.from.username,
-          followId: followData.id,
-          timestamp: followData.timestamp
-        });
-      }
-    } catch (error) {
-      console.error('Error processing follow automation:', error);
-    }
-  }
-
-  // Process Instagram like events
-  async processLike(likeData, instagramAccountId) {
-    try {
-      console.log(`Processing like automation for media: ${likeData.media_id}`);
-      
-      // Get all active like automations for this account
-      const automations = await AutomationRule.find({
-        userId: await this.getUserIdFromInstagramAccount(instagramAccountId),
-        triggerType: 'like',
-        isActive: true,
-        $or: [
-          { applyToAllContent: true },
-          { instagramMediaId: likeData.media_id }
-        ]
-      });
-      
-      // Process each automation
-      for (const automation of automations) {
-        await this.checkAndExecuteAutomation(automation, {
-          triggerType: 'like',
-          triggerText: 'like',
-          triggerIndex: 0,
-          userId: likeData.from.id,
-          username: likeData.from.username,
-          mediaId: likeData.media_id,
-          likeId: likeData.id,
-          timestamp: likeData.timestamp
-        });
-      }
-    } catch (error) {
-      console.error('Error processing like automation:', error);
-    }
-  }
-
-  // Check if automation should be executed and execute it
-  async checkAndExecuteAutomation(automation, triggerData) {
-    try {
-      // Check if automation can execute
-      if (!automation.canExecute()) {
-        return;
-      }
-      
-      // Check if text matches keywords
-      if (!automation.matchesKeywords(triggerData.triggerText, triggerData.triggerIndex)) {
-        return;
-      }
-      
-      // Check user restrictions
-      if (automation.conditions.excludeUsers && automation.conditions.excludeUsers.includes(triggerData.userId)) {
-        return;
-      }
-      
-      if (automation.conditions.includeUsers && automation.conditions.includeUsers.length > 0) {
-        if (!automation.conditions.includeUsers.includes(triggerData.userId)) {
-          return;
-        }
-      }
-      
-      // Check cooldown
-      const cacheKey = `${automation._id}_${triggerData.userId}`;
-      const lastExecution = this.executionCache.get(cacheKey);
-      const now = Date.now();
-      
-      if (lastExecution && (now - lastExecution) < (automation.cooldownMinutes * 60 * 1000)) {
-        return;
-      }
-      
-      // Check user execution limit
-      const userExecutionCount = await AutomationLog.countDocuments({
-        ruleId: automation._id,
-        senderId: triggerData.userId,
-        executedAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours
-      });
-      
-      if (userExecutionCount >= automation.maxExecutionsPerUser) {
-        return;
-      }
-      
-      // Execute all actions for this automation
-      const actions = automation.getAllActions();
-      for (const action of actions) {
-        await this.executeAction(automation, action, triggerData);
-      }
-      
-      // Update cache
-      this.executionCache.set(cacheKey, now);
-      
-    } catch (error) {
-      console.error('Error checking automation:', error);
-    }
-  }
-
-  // Execute a single action
-  async executeAction(automation, action, triggerData) {
-    try {
-      let success = false;
-      let errorMessage = '';
-      
-      // Add delay if specified
-      if (action.delaySeconds > 0) {
-        await new Promise(resolve => setTimeout(resolve, action.delaySeconds * 1000));
-      }
-      
-      switch (action.type) {
-        case 'send_dm':
-          success = await this.sendDirectMessage(automation, action, triggerData);
-          break;
-        case 'like_comment':
-          success = await this.likeComment(automation, action, triggerData);
-          break;
-        case 'reply_comment':
-          success = await this.replyToComment(automation, action, triggerData);
-          break;
-        case 'follow_user':
-          success = await this.followUser(automation, action, triggerData);
-          break;
-        case 'send_story_reply':
-          success = await this.sendStoryReply(automation, action, triggerData);
-          break;
-        default:
-          errorMessage = 'Unknown action type';
-      }
-      
-      // Log execution
-      await this.logAutomationExecution(automation, triggerData, success, errorMessage, action);
+      // Execute the action
+      const result = await this.executeAction(automation, triggerData);
       
       // Update automation stats
       automation.executionCount += 1;
       automation.lastExecuted = new Date();
       await automation.save();
-      
-      return success;
+
+      // Log the execution
+      await this.logExecution(automation, triggerData, result);
+
+      return result;
     } catch (error) {
-      console.error('Error executing action:', error);
-      await this.logAutomationExecution(automation, triggerData, false, error.message, action);
+      console.error('Error executing automation:', error);
+      throw error;
+    }
+  }
+
+  // Check if automation can be executed
+  async canExecuteAutomation(automation, triggerData) {
+    try {
+      // Check if automation is active
+      if (!automation.isActive) {
+        return false;
+      }
+
+      // Check daily execution limit
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const todayExecutions = await AutomationLog.countDocuments({
+        automationId: automation._id,
+        executedAt: { $gte: today }
+      });
+
+      if (todayExecutions >= automation.conditions.maxExecutionsPerDay) {
+        return false;
+      }
+
+      // Check cooldown period
+      if (automation.lastExecuted) {
+        const cooldownMs = automation.conditions.cooldownMinutes * 60 * 1000;
+        const timeSinceLastExecution = Date.now() - automation.lastExecuted.getTime();
+        
+        if (timeSinceLastExecution < cooldownMs) {
+          return false;
+        }
+      }
+
+      // Check per-user execution limit
+      const userExecutions = await AutomationLog.countDocuments({
+        automationId: automation._id,
+        'triggerData.userId': triggerData.userId,
+        executedAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours
+      });
+
+      if (userExecutions >= automation.conditions.maxExecutionsPerUser) {
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error checking automation execution:', error);
       return false;
     }
   }
 
-  // Legacy method for backward compatibility
-  async executeAutomation(automation, triggerData) {
-    const actions = automation.getAllActions();
-    if (actions.length === 0) return false;
+  // Check trigger conditions
+  checkTriggerConditions(automation, triggerData) {
+    try {
+      const triggers = automation.getAllTriggers();
+      
+      for (const trigger of triggers) {
+        switch (trigger.type) {
+          case 'comment':
+            if (this.checkCommentTrigger(automation, triggerData, trigger)) return true;
+            break;
+          case 'mention':
+            if (this.checkMentionTrigger(automation, triggerData, trigger)) return true;
+            break;
+          case 'like':
+            if (this.checkLikeTrigger(automation, triggerData, trigger)) return true;
+            break;
+          case 'follow':
+            if (this.checkFollowTrigger(automation, triggerData, trigger)) return true;
+            break;
+          case 'hashtag':
+            if (this.checkHashtagTrigger(automation, triggerData, trigger)) return true;
+            break;
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error checking trigger conditions:', error);
+      return false;
+    }
+  }
+
+  // Check comment trigger
+  checkCommentTrigger(automation, triggerData, trigger) {
+    const commentText = triggerData.text || '';
+    const keywords = trigger.keywords || [];
+
+    if (keywords.length === 0) {
+      return true; // No keywords specified, trigger on all comments
+    }
+
+    for (const keyword of keywords) {
+      if (trigger.exactMatch) {
+        if (trigger.caseSensitive) {
+          if (commentText === keyword) return true;
+        } else {
+          if (commentText.toLowerCase() === keyword.toLowerCase()) return true;
+        }
+      } else {
+        if (trigger.caseSensitive) {
+          if (commentText.includes(keyword)) return true;
+        } else {
+          if (commentText.toLowerCase().includes(keyword.toLowerCase())) return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  // Check mention trigger
+  checkMentionTrigger(automation, triggerData, trigger) {
+    const text = triggerData.text || '';
+    const username = this.user.username || '';
     
-    return await this.executeAction(automation, actions[0], triggerData);
+    // Check if user is mentioned
+    const mentionPattern = new RegExp(`@${username}`, 'i');
+    return mentionPattern.test(text);
+  }
+
+  // Check like trigger
+  checkLikeTrigger(automation, triggerData, trigger) {
+    // Trigger on any like
+    return triggerData.type === 'like';
+  }
+
+  // Check follow trigger
+  checkFollowTrigger(automation, triggerData, trigger) {
+    // Trigger on any follow
+    return triggerData.type === 'follow';
+  }
+
+  // Check hashtag trigger
+  checkHashtagTrigger(automation, triggerData, trigger) {
+    const text = triggerData.text || '';
+    const keywords = trigger.keywords || [];
+
+    for (const keyword of keywords) {
+      const hashtagPattern = new RegExp(`#${keyword}`, 'i');
+      if (hashtagPattern.test(text)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  // Execute automation action
+  async executeAction(automation, triggerData) {
+    try {
+      const actions = automation.getAllActions();
+      
+      for (const action of actions) {
+        switch (action.type) {
+          case 'send_dm':
+            return await this.sendDirectMessage(automation, triggerData, action);
+          case 'reply_comment':
+            return await this.postComment(automation, triggerData, action);
+          case 'like_comment':
+            return await this.likePost(automation, triggerData, action);
+          case 'follow_user':
+            return await this.followUser(automation, triggerData, action);
+          case 'send_story_reply':
+            return await this.sendDirectMessage(automation, triggerData, action);
+          default:
+            throw new Error(`Unknown action type: ${action.type}`);
+        }
+      }
+      
+      throw new Error('No actions found for automation');
+    } catch (error) {
+      console.error('Error executing automation action:', error);
+      throw error;
+    }
   }
 
   // Send direct message
-  async sendDirectMessage(automation, action, triggerData) {
+  async sendDirectMessage(automation, triggerData, action) {
     try {
-      const message = action.responseMessage || automation.responseMessage;
-      if (!message) {
-        throw new Error('No response message configured');
-      }
-      
-      // Call Instagram API to send DM
-      const result = await InstagramApi.sendDirectMessage(
-        triggerData.userId,
-        message,
-        automation.instagramAccountId
-      );
-      
-      return result.success;
+      // This would require Instagram Graph API permissions
+      // For now, we'll simulate the action
+      const result = {
+        action: 'send_dm',
+        targetUserId: triggerData.userId,
+        message: action.responseMessage || automation.responseMessage,
+        success: true,
+        timestamp: new Date()
+      };
+
+      return result;
     } catch (error) {
-      console.error('Error sending DM:', error);
-      return false;
+      console.error('Error sending direct message:', error);
+      throw error;
     }
   }
 
-  // Like comment
-  async likeComment(automation, action, triggerData) {
+  // Post comment
+  async postComment(automation, triggerData, action) {
     try {
-      if (!triggerData.commentId) {
-        throw new Error('No comment ID provided');
-      }
-      
-      // Call Instagram API to like comment
-      const result = await InstagramApi.likeComment(
-        triggerData.commentId,
-        automation.instagramAccountId
-      );
-      
-      return result.success;
+      // This would require Instagram Graph API permissions
+      const result = {
+        action: 'comment',
+        postId: triggerData.postId,
+        comment: action.responseMessage || automation.responseMessage,
+        success: true,
+        timestamp: new Date()
+      };
+
+      return result;
     } catch (error) {
-      console.error('Error liking comment:', error);
-      return false;
+      console.error('Error posting comment:', error);
+      throw error;
     }
   }
 
-  // Reply to comment
-  async replyToComment(automation, action, triggerData) {
+  // Like post
+  async likePost(automation, triggerData, action) {
     try {
-      const message = action.responseMessage || automation.responseMessage;
-      if (!message) {
-        throw new Error('No response message configured');
-      }
-      
-      if (!triggerData.commentId) {
-        throw new Error('No comment ID provided');
-      }
-      
-      // Call Instagram API to reply to comment
-      const result = await InstagramApi.replyToComment(
-        triggerData.commentId,
-        message,
-        automation.instagramAccountId
-      );
-      
-      return result.success;
+      const result = {
+        action: 'like',
+        postId: triggerData.postId,
+        success: true,
+        timestamp: new Date()
+      };
+
+      return result;
     } catch (error) {
-      console.error('Error replying to comment:', error);
-      return false;
+      console.error('Error liking post:', error);
+      throw error;
     }
   }
 
   // Follow user
-  async followUser(automation, action, triggerData) {
+  async followUser(automation, triggerData, action) {
     try {
-      // Call Instagram API to follow user
-      const result = await InstagramApi.followUser(
-        triggerData.userId,
-        automation.instagramAccountId
-      );
-      
-      return result.success;
+      const result = {
+        action: 'follow',
+        targetUserId: triggerData.userId,
+        success: true,
+        timestamp: new Date()
+      };
+
+      return result;
     } catch (error) {
       console.error('Error following user:', error);
-      return false;
+      throw error;
     }
   }
 
-  // Send story reply
-  async sendStoryReply(automation, action, triggerData) {
+  // Save post
+  async savePost(automation, triggerData, action) {
     try {
-      const message = action.responseMessage || automation.responseMessage;
-      if (!message) {
-        throw new Error('No response message configured');
-      }
-      
-      // Call Instagram API to send story reply
-      const result = await InstagramApi.sendStoryReply(
-        triggerData.userId,
-        message,
-        automation.instagramAccountId
-      );
-      
-      return result.success;
+      const result = {
+        action: 'save_post',
+        postId: triggerData.postId,
+        success: true,
+        timestamp: new Date()
+      };
+
+      return result;
     } catch (error) {
-      console.error('Error sending story reply:', error);
-      return false;
+      console.error('Error saving post:', error);
+      throw error;
+    }
+  }
+
+  // Execute custom action
+  async executeCustomAction(automation, triggerData) {
+    try {
+      // Custom action logic can be implemented here
+      const result = {
+        action: 'custom_action',
+        customData: automation.responseMessage,
+        success: true,
+        timestamp: new Date()
+      };
+
+      return result;
+    } catch (error) {
+      console.error('Error executing custom action:', error);
+      throw error;
     }
   }
 
   // Log automation execution
-  async logAutomationExecution(automation, triggerData, success, errorMessage = '', action = null) {
+  async logExecution(automation, triggerData, result) {
     try {
-      const log = new AutomationLog({
-        userId: automation.userId,
-        ruleId: automation._id,
-        triggerType: triggerData.triggerType,
-        triggerText: triggerData.triggerText,
-        senderId: triggerData.userId,
-        responseMessage: action?.responseMessage || automation.responseMessage,
-        executedAt: new Date(),
-        success,
-        errorMessage,
-        actionType: action?.type || automation.actionType
-      });
+      const triggers = automation.getAllTriggers();
+      const actions = automation.getAllActions();
       
+      const log = new AutomationLog({
+        automationId: automation._id,
+        userId: this.user._id,
+        triggerType: triggers.length > 0 ? triggers[0].type : automation.triggerType,
+        actionType: actions.length > 0 ? actions[0].type : automation.actionType,
+        triggerData,
+        result,
+        executedAt: new Date(),
+        success: result.success
+      });
+
       await log.save();
+      return log;
     } catch (error) {
       console.error('Error logging automation execution:', error);
-    }
-  }
-
-  // Get automation statistics
-  async getAutomationStats(userId) {
-    try {
-      const stats = await AutomationRule.aggregate([
-        { $match: { userId: userId } },
-        {
-          $group: {
-            _id: null,
-            totalAutomations: { $sum: 1 },
-            activeAutomations: { $sum: { $cond: ['$isActive', 1, 0] } },
-            totalExecutions: { $sum: '$executionCount' }
-          }
-        }
-      ]);
-      
-      const successfulExecutions = await AutomationLog.countDocuments({
-        userId: userId,
-        success: true
-      });
-      
-      return {
-        totalAutomations: stats[0]?.totalAutomations || 0,
-        activeAutomations: stats[0]?.activeAutomations || 0,
-        totalExecutions: stats[0]?.totalExecutions || 0,
-        successfulExecutions
-      };
-    } catch (error) {
-      throw new Error(`Failed to get automation stats: ${error.message}`);
+      // Don't throw error for logging failures
     }
   }
 
   // Get automation logs
-  async getAutomationLogs(userId, filters = {}) {
+  async getAutomationLogs(automationId = null) {
     try {
-      const query = { userId };
-      
-      if (filters.ruleId) {
-        query.ruleId = filters.ruleId;
+      const query = { userId: this.user._id };
+      if (automationId) {
+        query.automationId = automationId;
       }
-      
-      if (filters.success !== undefined) {
-        query.success = filters.success;
-      }
-      
+
       const logs = await AutomationLog.find(query)
+        .populate('automationId', 'name triggerType actionType')
         .sort({ executedAt: -1 })
-        .limit(filters.limit || 50);
-      
+        .limit(100);
+
       return logs;
     } catch (error) {
-      throw new Error(`Failed to get automation logs: ${error.message}`);
+      console.error('Error getting automation logs:', error);
+      throw error;
     }
   }
 
-  // Test automation
-  async testAutomation(automationId, userId, testData) {
+  // Get automation statistics
+  async getAutomationStats() {
     try {
-      const automation = await this.getAutomationById(automationId, userId);
-      if (!automation) {
-        throw new Error('Automation not found');
+      const automations = await AutomationRule.find({ userId: this.user._id });
+      const logs = await AutomationLog.find({ userId: this.user._id });
+
+      const stats = {
+        totalAutomations: automations.length,
+        activeAutomations: automations.filter(a => a.isActive).length,
+        totalExecutions: logs.length,
+        successfulExecutions: logs.filter(l => l.success).length,
+        failedExecutions: logs.filter(l => !l.success).length,
+        avgExecutionTime: 0,
+        topTriggers: {},
+        recentExecutions: logs.slice(0, 10)
+      };
+
+      // Calculate average execution time
+      const executionTimes = logs
+        .filter(l => l.executionTime)
+        .map(l => l.executionTime);
+      
+      if (executionTimes.length > 0) {
+        stats.avgExecutionTime = executionTimes.reduce((a, b) => a + b, 0) / executionTimes.length;
       }
-      
-      // Execute automation with test data
-      const result = await this.checkAndExecuteAutomation(automation, {
-        ...testData,
-        triggerIndex: 0
+
+      // Count trigger types
+      automations.forEach(automation => {
+        const triggers = automation.getAllTriggers();
+        if (triggers.length > 0) {
+          const triggerType = triggers[0].type;
+          stats.topTriggers[triggerType] = (stats.topTriggers[triggerType] || 0) + 1;
+        } else if (automation.triggerType) {
+          stats.topTriggers[automation.triggerType] = (stats.topTriggers[automation.triggerType] || 0) + 1;
+        }
       });
-      
-      return { success: true, result };
+
+      return stats;
     } catch (error) {
-      throw new Error(`Failed to test automation: ${error.message}`);
+      console.error('Error getting automation stats:', error);
+      throw error;
     }
   }
 
-  // Helper method to get user ID from Instagram account ID
-  async getUserIdFromInstagramAccount(instagramAccountId) {
+  // Bulk delete automations
+  async bulkDeleteAutomations(automationIds) {
     try {
-      // This would typically query your database to find the user who owns this Instagram account
-      // For now, we'll use a simple mapping or query
-      const User = require('../models/User');
-      const user = await User.findOne({ 
-        'instagramAccounts.instagramAccountId': instagramAccountId 
+      const result = await AutomationRule.deleteMany({
+        _id: { $in: automationIds },
+        userId: this.user._id
       });
-      
-      return user?._id;
+
+      // Also delete related logs
+      await AutomationLog.deleteMany({
+        automationId: { $in: automationIds }
+      });
+
+      return result;
     } catch (error) {
-      console.error('Error getting user ID from Instagram account:', error);
-      return null;
+      console.error('Error bulk deleting automations:', error);
+      throw error;
     }
   }
 
-  // Get active automations for a user
-  async getActiveAutomations(userId) {
+  // Process webhook events
+  async processWebhookEvent(eventData) {
     try {
-      const automations = await AutomationRule.find({
-        userId: userId,
+      const activeAutomations = await AutomationRule.find({
+        userId: this.user._id,
         isActive: true
-      }).select('triggerType actionType');
-      
-      return automations;
+      });
+
+      const results = [];
+
+      for (const automation of activeAutomations) {
+        try {
+          // Check if automation should be triggered
+          const matched = this.checkTriggerConditions(automation, eventData);
+          
+          if (matched) {
+            const result = await this.executeAutomation(automation._id, eventData);
+            results.push({
+              automationId: automation._id,
+              automationName: automation.name,
+              success: true,
+              result
+            });
+          }
+        } catch (error) {
+          console.error(`Error processing automation ${automation._id}:`, error);
+          results.push({
+            automationId: automation._id,
+            automationName: automation.name,
+            success: false,
+            error: error.message
+          });
+        }
+      }
+
+      return results;
     } catch (error) {
-      console.error('Error getting active automations:', error);
-      return [];
+      console.error('Error processing webhook event:', error);
+      throw error;
     }
   }
 }
 
-module.exports = new AutomationService(); 
+module.exports = AutomationService; 

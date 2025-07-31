@@ -12,24 +12,23 @@ router.get('/', automationController.getAutomations);
 // Get automation statistics
 router.get('/stats', automationController.getAutomationStats);
 
-// Get automation analytics
-router.get('/analytics', automationController.getAutomationAnalytics);
-
 // Get automation logs
 router.get('/logs', automationController.getAutomationLogs);
 
-// Export automation template
-router.get('/template', automationController.exportAutomationTemplate);
+// Note: getAutomationAnalytics and exportAutomationTemplate methods not implemented yet
+// router.get('/analytics', automationController.getAutomationAnalytics);
+// router.get('/template', automationController.exportAutomationTemplate);
 
 // Create new automation
 router.post('/', automationController.createAutomation);
 
 // Bulk operations
-router.post('/bulk/update', automationController.bulkUpdateAutomations);
+// Note: bulkUpdateAutomations method not implemented yet
+// router.post('/bulk/update', automationController.bulkUpdateAutomations);
 router.post('/bulk/delete', automationController.bulkDeleteAutomations);
 
 // Get automation by ID
-router.get('/:id', automationController.getAutomationById);
+router.get('/:id', automationController.getAutomation);
 
 // Update automation
 router.put('/:id', automationController.updateAutomation);

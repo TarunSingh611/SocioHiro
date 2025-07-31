@@ -228,8 +228,8 @@ const ResponseMessageStep = ({ formData, setFormData }) => {
         </div>
         <div className="text-xs text-purple-700 space-y-1">
           <p>• This automation will trigger immediately when conditions are met</p>
-          <p>• Rate limiting: {formData.cooldownMinutes || 5} minutes between executions per user</p>
-          <p>• Daily limit: {formData.conditions.maxExecutionsPerDay || 10} executions per day</p>
+          <p>• Rate limiting: {formData.cooldownMinutes || 0} minutes between executions per user</p>
+          <p>• Daily limit: {formData.conditions.maxExecutionsPerDay || 100000} executions per day</p>
           {formData.conditions.timeOfDay?.start && formData.conditions.timeOfDay?.end && (
             <p>• Time window: {formData.conditions.timeOfDay.start} - {formData.conditions.timeOfDay.end}</p>
           )}

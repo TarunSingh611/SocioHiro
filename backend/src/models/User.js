@@ -1,17 +1,30 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-  // Support both Facebook and Instagram OAuth
-  facebookId: { type: String, unique: true, sparse: true },
+  // Instagram OAuth credentials (single account per user)
   instagramId: { type: String, unique: true, sparse: true },
-  email: { type: String, unique: true, sparse: true },
-  username: { type: String, unique: true, sparse: true },
-  password: String, // Hashed password for email/password login
+  username: { type: String }, // Instagram username
   accessToken: String,
   refreshToken: String,
   profilePic: String,
-  accountType: String, // 'instagram', 'facebook', etc.
-  instagramAccounts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'InstagramAccount' }],
+  accountType: String, // 'BUSINESS', 'PERSONAL', 'CREATOR'
+  
+  // Additional Instagram profile fields
+  instagramFullName: String,
+  instagramBio: String,
+  instagramWebsite: String,
+  instagramEmail: String,
+  instagramPhone: String,
+  instagramLocation: String,
+  instagramIsVerified: { type: Boolean, default: false },
+  instagramPostsCount: { type: Number, default: 0 },
+  instagramFollowersCount: { type: Number, default: 0 },
+  instagramFollowingCount: { type: Number, default: 0 },
+  instagramJoinedDate: Date,
+  
+  // Basic user info
+  email: { type: String },
+  username: { type: String, unique: true, sparse: true },
   
   // Instagram token management
   tokenExpiresIn: Number, // Token expiration time in seconds
@@ -84,6 +97,37 @@ userSchema.methods.needsTokenRefresh = function() {
   if (!this.tokenExpiresAt) return true;
   const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   return this.tokenExpiresAt <= sevenDaysFromNow;
+};
+
+// Method to check if user has Instagram connected
+userSchema.methods.hasInstagramConnected = function() {
+  return !!(this.instagramId && this.accessToken);
+};
+
+// Method to disconnect Instagram account
+userSchema.methods.disconnectInstagram = function() {
+  this.instagramId = null;
+  this.username = null;
+  this.accessToken = null;
+  this.refreshToken = null;
+  this.profilePic = null;
+  this.accountType = null;
+  this.tokenExpiresIn = null;
+  this.lastTokenRefresh = null;
+  this.tokenExpiresAt = null;
+  
+  // Clear additional Instagram fields
+  this.instagramFullName = null;
+  this.instagramBio = null;
+  this.instagramWebsite = null;
+  this.instagramEmail = null;
+  this.instagramPhone = null;
+  this.instagramLocation = null;
+  this.instagramIsVerified = false;
+  this.instagramPostsCount = 0;
+  this.instagramFollowersCount = 0;
+  this.instagramFollowingCount = 0;
+  this.instagramJoinedDate = null;
 };
 
 module.exports = mongoose.model('User', userSchema); 

@@ -1,18 +1,23 @@
-const automationService = require('../services/automationService');
+const AutomationService = require('../services/automationService');
 const { requireAuth } = require('../middleware/auth');
 
-// Get all automations for the authenticated user
+// Create new automation
+const createAutomation = async (req, res) => {
+  try {
+    const automationService = new AutomationService(req.user);
+    const automation = await automationService.createAutomation(req.body);
+    res.status(201).json(automation);
+  } catch (error) {
+    console.error('Error creating automation:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get all automations for user
 const getAutomations = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const filters = {
-      isActive: req.query.isActive !== undefined ? req.query.isActive === 'true' : undefined,
-      triggerType: req.query.triggerType,
-      contentId: req.query.contentId,
-      tags: req.query.tags ? req.query.tags.split(',') : undefined
-    };
-
-    const automations = await automationService.getAutomations(userId, filters);
+    const automationService = new AutomationService(req.user);
+    const automations = await automationService.getAutomations();
     res.json(automations);
   } catch (error) {
     console.error('Error getting automations:', error);
@@ -21,135 +26,109 @@ const getAutomations = async (req, res) => {
 };
 
 // Get automation by ID
-const getAutomationById = async (req, res) => {
+const getAutomation = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const automationId = req.params.id;
-
-    const automation = await automationService.getAutomationById(automationId, userId);
-    if (!automation) {
-      return res.status(404).json({ error: 'Automation not found' });
-    }
-
+    const automationService = new AutomationService(req.user);
+    const automation = await automationService.getAutomation(req.params.id);
     res.json(automation);
   } catch (error) {
     console.error('Error getting automation:', error);
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Create new automation
-const createAutomation = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const automationData = req.body;
-
-    // Enhanced validation
-    if (!automationData.name || automationData.name.trim().length < 3) {
-      return res.status(400).json({ error: 'Automation name must be at least 3 characters' });
+    if (error.message === 'Automation not found') {
+      res.status(404).json({ error: 'Automation not found' });
+    } else {
+      res.status(500).json({ error: error.message });
     }
-
-    // Validate trigger and action
-    if (!automationData.triggerType && (!automationData.triggers || automationData.triggers.length === 0)) {
-      return res.status(400).json({ error: 'At least one trigger must be specified' });
-    }
-
-    if (!automationData.actionType && (!automationData.actions || automationData.actions.length === 0)) {
-      return res.status(400).json({ error: 'At least one action must be specified' });
-    }
-
-    // Validate response message for actions that require it
-    const messageRequiredActions = ['send_dm', 'reply_comment', 'send_story_reply'];
-    const actions = automationData.actions || [{ type: automationData.actionType }];
-    const hasMessageAction = actions.some(action => messageRequiredActions.includes(action.type));
-    
-    if (hasMessageAction && (!automationData.responseMessage || automationData.responseMessage.trim().length < 5)) {
-      return res.status(400).json({ error: 'Response message is required and must be at least 5 characters for message-based actions' });
-    }
-
-    const automation = await automationService.createAutomation(userId, automationData);
-    res.status(201).json(automation);
-  } catch (error) {
-    console.error('Error creating automation:', error);
-    res.status(500).json({ error: error.message });
   }
 };
 
 // Update automation
 const updateAutomation = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const automationId = req.params.id;
-    const updateData = req.body;
-
-    // Enhanced validation for updates
-    if (updateData.name && updateData.name.trim().length < 3) {
-      return res.status(400).json({ error: 'Automation name must be at least 3 characters' });
-    }
-
-    const automation = await automationService.updateAutomation(automationId, userId, updateData);
-    if (!automation) {
-      return res.status(404).json({ error: 'Automation not found' });
-    }
-
+    const automationService = new AutomationService(req.user);
+    const automation = await automationService.updateAutomation(req.params.id, req.body);
     res.json(automation);
   } catch (error) {
     console.error('Error updating automation:', error);
-    res.status(500).json({ error: error.message });
+    if (error.message === 'Automation not found') {
+      res.status(404).json({ error: 'Automation not found' });
+    } else {
+      res.status(500).json({ error: error.message });
+    }
   }
 };
 
 // Delete automation
 const deleteAutomation = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const automationId = req.params.id;
-
-    await automationService.deleteAutomation(automationId, userId);
-    res.json({ success: true, message: 'Automation deleted successfully' });
+    const automationService = new AutomationService(req.user);
+    await automationService.deleteAutomation(req.params.id);
+    res.json({ message: 'Automation deleted successfully' });
   } catch (error) {
     console.error('Error deleting automation:', error);
-    res.status(500).json({ error: error.message });
+    if (error.message === 'Automation not found') {
+      res.status(404).json({ error: 'Automation not found' });
+    } else {
+      res.status(500).json({ error: error.message });
+    }
   }
 };
 
 // Toggle automation status
 const toggleAutomationStatus = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const automationId = req.params.id;
-
-    const automation = await automationService.toggleAutomationStatus(automationId, userId);
+    const automationService = new AutomationService(req.user);
+    const automation = await automationService.toggleAutomationStatus(req.params.id);
     res.json(automation);
   } catch (error) {
     console.error('Error toggling automation status:', error);
-    res.status(500).json({ error: error.message });
+    if (error.message === 'Automation not found') {
+      res.status(404).json({ error: 'Automation not found' });
+    } else {
+      res.status(500).json({ error: error.message });
+    }
   }
 };
 
-// Get automation statistics
-const getAutomationStats = async (req, res) => {
+// Test automation
+const testAutomation = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const stats = await automationService.getAutomationStats(userId);
-    res.json(stats);
+    const automationService = new AutomationService(req.user);
+    const result = await automationService.testAutomation(req.params.id, req.body);
+    res.json(result);
   } catch (error) {
-    console.error('Error getting automation stats:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error testing automation:', error);
+    if (error.message === 'Automation not found') {
+      res.status(404).json({ error: 'Automation not found' });
+    } else {
+      res.status(500).json({ error: error.message });
+    }
+  }
+};
+
+// Execute automation
+const executeAutomation = async (req, res) => {
+  try {
+    const automationService = new AutomationService(req.user);
+    const result = await automationService.executeAutomation(req.params.id, req.body);
+    res.json(result);
+  } catch (error) {
+    console.error('Error executing automation:', error);
+    if (error.message === 'Automation not found') {
+      res.status(404).json({ error: 'Automation not found' });
+    } else if (error.message.includes('cannot be executed') || error.message.includes('conditions not met')) {
+      res.status(400).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: error.message });
+    }
   }
 };
 
 // Get automation logs
 const getAutomationLogs = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const filters = {
-      ruleId: req.query.ruleId,
-      success: req.query.success !== undefined ? req.query.success === 'true' : undefined,
-      limit: parseInt(req.query.limit) || 50
-    };
-
-    const logs = await automationService.getAutomationLogs(userId, filters);
+    const automationService = new AutomationService(req.user);
+    const automationId = req.query.automationId || null;
+    const logs = await automationService.getAutomationLogs(automationId);
     res.json(logs);
   } catch (error) {
     console.error('Error getting automation logs:', error);
@@ -157,80 +136,14 @@ const getAutomationLogs = async (req, res) => {
   }
 };
 
-// Get content for automation
-const getContentForAutomation = async (req, res) => {
+// Get automation statistics
+const getAutomationStats = async (req, res) => {
   try {
-    const userId = req.user.id;
-    
-    // This would typically fetch content from the content service
-    // For now, we'll return a mock response
-    const content = [
-      {
-        _id: 'content_1',
-        instagramId: '17841405793087218',
-        caption: 'Sample post 1',
-        mediaType: 'IMAGE',
-        instagramMediaId: '17841405793087218'
-      },
-      {
-        _id: 'content_2',
-        instagramId: '17841405793087219',
-        caption: 'Sample post 2',
-        mediaType: 'VIDEO',
-        instagramMediaId: '17841405793087219'
-      }
-    ];
-    
-    res.json(content);
+    const automationService = new AutomationService(req.user);
+    const stats = await automationService.getAutomationStats();
+    res.json(stats);
   } catch (error) {
-    console.error('Error getting content for automation:', error);
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Test automation
-const testAutomation = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const automationId = req.params.id;
-    const testData = req.body;
-
-    // Validate test data
-    if (!testData.triggerType) {
-      return res.status(400).json({ error: 'Trigger type is required for testing' });
-    }
-
-    const result = await automationService.testAutomation(automationId, userId, testData);
-    res.json(result);
-  } catch (error) {
-    console.error('Error testing automation:', error);
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Bulk update automations
-const bulkUpdateAutomations = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { automationIds, updates } = req.body;
-
-    if (!automationIds || !Array.isArray(automationIds) || automationIds.length === 0) {
-      return res.status(400).json({ error: 'Automation IDs array is required' });
-    }
-
-    const results = [];
-    for (const automationId of automationIds) {
-      try {
-        const automation = await automationService.updateAutomation(automationId, userId, updates);
-        results.push({ id: automationId, success: true, automation });
-      } catch (error) {
-        results.push({ id: automationId, success: false, error: error.message });
-      }
-    }
-
-    res.json({ results });
-  } catch (error) {
-    console.error('Error bulk updating automations:', error);
+    console.error('Error getting automation stats:', error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -238,113 +151,265 @@ const bulkUpdateAutomations = async (req, res) => {
 // Bulk delete automations
 const bulkDeleteAutomations = async (req, res) => {
   try {
-    const userId = req.user.id;
     const { automationIds } = req.body;
-
+    
     if (!automationIds || !Array.isArray(automationIds) || automationIds.length === 0) {
-      return res.status(400).json({ error: 'Automation IDs array is required' });
+      return res.status(400).json({ error: 'automationIds array is required' });
     }
 
-    const results = [];
-    for (const automationId of automationIds) {
-      try {
-        await automationService.deleteAutomation(automationId, userId);
-        results.push({ id: automationId, success: true });
-      } catch (error) {
-        results.push({ id: automationId, success: false, error: error.message });
-      }
-    }
-
-    res.json({ results });
+    const automationService = new AutomationService(req.user);
+    const result = await automationService.bulkDeleteAutomations(automationIds);
+    res.json({ 
+      message: `${result.deletedCount} automations deleted successfully`,
+      deletedCount: result.deletedCount
+    });
   } catch (error) {
     console.error('Error bulk deleting automations:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
-// Export automation template
-const exportAutomationTemplate = async (req, res) => {
+// Process webhook events
+const processWebhookEvent = async (req, res) => {
   try {
-    const template = {
-      name: 'Sample Automation',
-      description: 'Automated response for comments',
-      triggerType: 'comment',
-      actionType: 'send_dm',
-      keywords: ['question', 'help', 'support'],
-      responseMessage: 'Thank you for your comment! We\'ll get back to you soon.',
-      exactMatch: false,
-      caseSensitive: false,
-      isActive: true,
-      cooldownMinutes: 5,
-      maxExecutionsPerUser: 1,
-      conditions: {
-        maxExecutionsPerDay: 10,
-        timeOfDay: {
-          start: '09:00',
-          end: '17:00'
-        },
-        daysOfWeek: [1, 2, 3, 4, 5], // Monday to Friday
-        requireVerifiedUser: false
-      }
-    };
-
-    res.json(template);
+    const automationService = new AutomationService(req.user);
+    const results = await automationService.processWebhookEvent(req.body);
+    res.json({ 
+      message: 'Webhook event processed',
+      results 
+    });
   } catch (error) {
-    console.error('Error exporting automation template:', error);
+    console.error('Error processing webhook event:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
-// Get automation analytics
-const getAutomationAnalytics = async (req, res) => {
+// Get automation templates
+const getAutomationTemplates = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { period = '30d' } = req.query;
+    const templates = [
+      {
+        id: 'welcome_comment',
+        name: 'Welcome Comment Response',
+        description: 'Automatically respond to comments with a welcome message',
+        triggerType: 'comment',
+        actionType: 'send_dm',
+        keywords: ['hello', 'hi', 'hey'],
+        responseMessage: 'Thanks for commenting! We appreciate your engagement. 😊',
+        exactMatch: false,
+        caseSensitive: false
+      },
+      {
+        id: 'mention_response',
+        name: 'Mention Response',
+        description: 'Respond when someone mentions your account',
+        triggerType: 'mention',
+        actionType: 'send_dm',
+        keywords: [],
+        responseMessage: 'Thanks for the mention! We love connecting with our community. 💙',
+        exactMatch: false,
+        caseSensitive: false
+      },
+      {
+        id: 'follow_back',
+        name: 'Follow Back',
+        description: 'Automatically follow users who follow you',
+        triggerType: 'follow',
+        actionType: 'follow',
+        keywords: [],
+        responseMessage: '',
+        exactMatch: false,
+        caseSensitive: false
+      },
+      {
+        id: 'hashtag_engagement',
+        name: 'Hashtag Engagement',
+        description: 'Engage with posts using specific hashtags',
+        triggerType: 'hashtag',
+        actionType: 'like',
+        keywords: ['yourbrand', 'yourniche'],
+        responseMessage: '',
+        exactMatch: false,
+        caseSensitive: false
+      },
+      {
+        id: 'customer_support',
+        name: 'Customer Support',
+        description: 'Provide immediate response to support inquiries',
+        triggerType: 'comment',
+        actionType: 'send_dm',
+        keywords: ['help', 'support', 'question', 'issue'],
+        responseMessage: 'Hi! Thanks for reaching out. Our support team will get back to you within 24 hours. In the meantime, you can check our FAQ at [your-website.com/faq]',
+        exactMatch: false,
+        caseSensitive: false
+      }
+    ];
 
-    // This would typically fetch analytics data
-    // For now, we'll return mock data
-    const analytics = {
-      totalExecutions: 150,
-      successfulExecutions: 142,
-      failedExecutions: 8,
-      averageResponseTime: 2.5,
-      topTriggers: [
-        { trigger: 'comment', count: 85 },
-        { trigger: 'dm', count: 45 },
-        { trigger: 'mention', count: 20 }
-      ],
-      topActions: [
-        { action: 'send_dm', count: 90 },
-        { action: 'like_comment', count: 35 },
-        { action: 'reply_comment', count: 25 }
-      ],
-      dailyExecutions: [
-        { date: '2024-01-01', count: 5 },
-        { date: '2024-01-02', count: 8 },
-        { date: '2024-01-03', count: 12 }
-      ]
+    res.json(templates);
+  } catch (error) {
+    console.error('Error getting automation templates:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Create automation from template
+const createAutomationFromTemplate = async (req, res) => {
+  try {
+    const { templateId, customizations = {} } = req.body;
+    
+    const templates = [
+      {
+        id: 'welcome_comment',
+        name: 'Welcome Comment Response',
+        description: 'Automatically respond to comments with a welcome message',
+        triggerType: 'comment',
+        actionType: 'send_dm',
+        keywords: ['hello', 'hi', 'hey'],
+        responseMessage: 'Thanks for commenting! We appreciate your engagement. 😊',
+        exactMatch: false,
+        caseSensitive: false
+      },
+      {
+        id: 'mention_response',
+        name: 'Mention Response',
+        description: 'Respond when someone mentions your account',
+        triggerType: 'mention',
+        actionType: 'send_dm',
+        keywords: [],
+        responseMessage: 'Thanks for the mention! We love connecting with our community. 💙',
+        exactMatch: false,
+        caseSensitive: false
+      },
+      {
+        id: 'follow_back',
+        name: 'Follow Back',
+        description: 'Automatically follow users who follow you',
+        triggerType: 'follow',
+        actionType: 'follow',
+        keywords: [],
+        responseMessage: '',
+        exactMatch: false,
+        caseSensitive: false
+      },
+      {
+        id: 'hashtag_engagement',
+        name: 'Hashtag Engagement',
+        description: 'Engage with posts using specific hashtags',
+        triggerType: 'hashtag',
+        actionType: 'like',
+        keywords: ['yourbrand', 'yourniche'],
+        responseMessage: '',
+        exactMatch: false,
+        caseSensitive: false
+      },
+      {
+        id: 'customer_support',
+        name: 'Customer Support',
+        description: 'Provide immediate response to support inquiries',
+        triggerType: 'comment',
+        actionType: 'send_dm',
+        keywords: ['help', 'support', 'question', 'issue'],
+        responseMessage: 'Hi! Thanks for reaching out. Our support team will get back to you within 24 hours. In the meantime, you can check our FAQ at [your-website.com/faq]',
+        exactMatch: false,
+        caseSensitive: false
+      }
+    ];
+
+    const template = templates.find(t => t.id === templateId);
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+
+    const automationData = {
+      ...template,
+      ...customizations,
+      name: customizations.name || template.name,
+      description: customizations.description || template.description,
+      keywords: customizations.keywords || template.keywords,
+      responseMessage: customizations.responseMessage || template.responseMessage
     };
 
-    res.json(analytics);
+    const automationService = new AutomationService(req.user);
+    const automation = await automationService.createAutomation(automationData);
+    
+    res.status(201).json(automation);
   } catch (error) {
-    console.error('Error getting automation analytics:', error);
+    console.error('Error creating automation from template:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get automation performance metrics
+const getAutomationPerformance = async (req, res) => {
+  try {
+    const automationService = new AutomationService(req.user);
+    const automations = await automationService.getAutomations();
+    const logs = await automationService.getAutomationLogs();
+
+    const performance = {
+      totalAutomations: automations.length,
+      activeAutomations: automations.filter(a => a.isActive).length,
+      totalExecutions: logs.length,
+      successRate: logs.length > 0 ? (logs.filter(l => l.success).length / logs.length) * 100 : 0,
+      averageExecutionsPerDay: 0,
+      topPerformingAutomations: [],
+      recentActivity: logs.slice(0, 10)
+    };
+
+    // Calculate average executions per day
+    if (logs.length > 0) {
+      const firstLog = logs[logs.length - 1];
+      const lastLog = logs[0];
+      const daysDiff = (lastLog.executedAt - firstLog.executedAt) / (1000 * 60 * 60 * 24);
+      performance.averageExecutionsPerDay = daysDiff > 0 ? logs.length / daysDiff : logs.length;
+    }
+
+    // Get top performing automations
+    const automationStats = {};
+    logs.forEach(log => {
+      if (log.automationId) {
+        const automationId = log.automationId.toString();
+        if (!automationStats[automationId]) {
+          automationStats[automationId] = { executions: 0, successes: 0 };
+        }
+        automationStats[automationId].executions++;
+        if (log.success) {
+          automationStats[automationId].successes++;
+        }
+      }
+    });
+
+    performance.topPerformingAutomations = Object.entries(automationStats)
+      .map(([automationId, stats]) => ({
+        automationId,
+        executions: stats.executions,
+        successes: stats.successes,
+        successRate: (stats.successes / stats.executions) * 100
+      }))
+      .sort((a, b) => b.executions - a.executions)
+      .slice(0, 5);
+
+    res.json(performance);
+  } catch (error) {
+    console.error('Error getting automation performance:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
 module.exports = {
-  getAutomations,
-  getAutomationById,
   createAutomation,
+  getAutomations,
+  getAutomation,
   updateAutomation,
   deleteAutomation,
   toggleAutomationStatus,
-  getAutomationStats,
-  getAutomationLogs,
-  getContentForAutomation,
   testAutomation,
-  bulkUpdateAutomations,
+  executeAutomation,
+  getAutomationLogs,
+  getAutomationStats,
   bulkDeleteAutomations,
-  exportAutomationTemplate,
-  getAutomationAnalytics
+  processWebhookEvent,
+  getAutomationTemplates,
+  createAutomationFromTemplate,
+  getAutomationPerformance
 }; 

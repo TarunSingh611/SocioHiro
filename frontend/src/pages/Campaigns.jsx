@@ -14,8 +14,12 @@ import {
   MegaphoneIcon,
   ArrowLeftIcon,
   EyeIcon,
-  HeartIcon
+  HeartIcon,
+  WrenchScrewdriverIcon,
+  RocketLaunchIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
+import WorkInProgress from '../components/WorkInProgress';
 
 const Campaigns = () => {
   const [campaigns, setCampaigns] = useState([]);
@@ -37,9 +41,15 @@ const Campaigns = () => {
     isActive: true
   });
 
+  // Check if we're in development mode
+  // const isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'development';
+  const isDevelopment = false;
+
   useEffect(() => {
-    fetchCampaigns();
-  }, []);
+    if (isDevelopment) {
+      fetchCampaigns();
+    }
+  }, [isDevelopment]);
 
   const fetchCampaigns = async () => {
     try {
@@ -152,6 +162,35 @@ const Campaigns = () => {
     }
   };
 
+    if (!isDevelopment) {
+    const campaignFeatures = [
+      {
+        icon: <MegaphoneIcon className="w-6 h-6 text-indigo-600" />,
+        title: "Campaign Creation",
+        description: "Create engaging campaigns with multiple posts, stories, and reels all in one place."
+      },
+      {
+        icon: <CalendarIcon className="w-6 h-6 text-indigo-600" />,
+        title: "Smart Scheduling", 
+        description: "Schedule your content at optimal times for maximum engagement and reach."
+      },
+      {
+        icon: <EyeIcon className="w-6 h-6 text-indigo-600" />,
+        title: "Analytics & Insights",
+        description: "Track performance, analyze engagement, and optimize your campaigns with detailed insights."
+      }
+    ];
+
+    return (
+      <WorkInProgress
+        title="Campaigns Coming Soon"
+        subtitle="We're building powerful campaign management tools to help you create, schedule, and track your Instagram campaigns."
+        features={campaignFeatures}
+      />
+    );
+  }
+
+  // Original Campaigns page for development mode
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -159,6 +198,7 @@ const Campaigns = () => {
       </div>
     );
   }
+
 
   return (
     <div className="space-y-6">

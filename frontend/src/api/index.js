@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api',
   timeout: 30000, // Increased from 10000 to 30000 (30 seconds)
   headers: {
     'Content-Type': 'application/json',
@@ -55,13 +55,19 @@ export const getAnalyticsOrders = () => api.get('/analytics/orders');
 export const getAnalyticsProducts = () => api.get('/analytics/products');
 export const getAnalyticsEngagement = () => api.get('/analytics/engagement');
 export const getAnalyticsRevenue = () => api.get('/analytics/revenue');
+export const getAnalyticsDashboard = () => api.get('/analytics/dashboard');
+export const getAnalyticsTimeBased = (timeframe = 'monthly') => api.get('/analytics/time-based', { params: { timeframe } });
+export const getAnalyticsComparison = (period1, period2) => api.get('/analytics/comparison', { params: { period1, period2 } });
+export const exportAnalytics = (type = 'content', timeframe = 'monthly') => api.get('/analytics/export', { params: { type, timeframe } });
 
-// Instagram Accounts
-export const getInstagramAccounts = () => api.get('/instagram/accounts');
-export const addInstagramAccount = (data) => api.post('/instagram/accounts', data);
-export const updateInstagramAccount = (id, data) => api.put(`/instagram/accounts/${id}`, data);
-export const deleteInstagramAccount = (id) => api.delete(`/instagram/accounts/${id}`);
-export const refreshInstagramAccountTokens = (id) => api.put(`/instagram/accounts/${id}/refresh`);
+// Instagram Account (Single Account Management)
+export const getCurrentInstagramAccount = () => api.get('/instagram-accounts/current');
+export const connectInstagramAccount = (data) => api.post('/instagram-accounts/connect', data);
+export const disconnectInstagramAccount = () => api.delete('/instagram-accounts/disconnect');
+export const refreshInstagramTokens = () => api.post('/instagram-accounts/refresh-tokens');
+export const getInstagramConnectionStatus = () => api.get('/instagram-accounts/status');
+export const getInstagramAccountAnalytics = () => api.get('/instagram-accounts/analytics');
+export const updateInstagramAccountSettings = (data) => api.put('/instagram-accounts/settings', data);
 
 // Campaigns
 export const getCampaigns = () => api.get('/campaigns');
@@ -89,8 +95,6 @@ export const getSettings = () => api.get('/settings');
 export const updateSettings = (data) => api.put('/settings', data); 
 
 // Authentication
-export const login = (email, password) => api.post('/auth/login', { email, password });
-export const register = (userData) => api.post('/auth/register', userData);
 export const getAuthStatus = () => api.get('/auth/status');
 export const logout = () => api.post('/auth/logout');
 export const logoutAllDevices = () => api.post('/auth/logout-all');

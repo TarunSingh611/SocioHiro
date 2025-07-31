@@ -302,7 +302,7 @@ const ContentConditionsStep = ({ formData, setFormData, content, selectedContent
               <label className="block text-xs text-gray-600 mb-1">Max Executions/Day</label>
               <input
                 type="number"
-                value={formData.conditions.maxExecutionsPerDay || 10}
+                value={formData.conditions.maxExecutionsPerDay || 100000}
                 onChange={(e) => handleInputChange('conditions.maxExecutionsPerDay', parseInt(e.target.value) || 0)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 min="0"
@@ -312,7 +312,7 @@ const ContentConditionsStep = ({ formData, setFormData, content, selectedContent
               <label className="block text-xs text-gray-600 mb-1">Cooldown (minutes)</label>
               <input
                 type="number"
-                value={formData.cooldownMinutes || 5}
+                value={formData.cooldownMinutes || 0}
                 onChange={(e) => setFormData({ ...formData, cooldownMinutes: parseInt(e.target.value) || 0 })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 min="0"
@@ -322,7 +322,7 @@ const ContentConditionsStep = ({ formData, setFormData, content, selectedContent
               <label className="block text-xs text-gray-600 mb-1">Max Executions/User</label>
               <input
                 type="number"
-                value={formData.maxExecutionsPerUser || 1}
+                value={formData.maxExecutionsPerUser || 10}
                 onChange={(e) => setFormData({ ...formData, maxExecutionsPerUser: parseInt(e.target.value) || 0 })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 min="0"
