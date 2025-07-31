@@ -18,6 +18,10 @@ out/
 .fusebox/
 .dynamodb/
 
+./backend/testing/
+./backend/testing
+./backend/testing/* 
+
 # Environment variables
 .env
 .env.local
