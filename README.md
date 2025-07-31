@@ -151,6 +151,62 @@ vercel --prod
 3. **Update frontend API URL**
 - Update `VITE_API_URL` in Vercel to point to your backend URL
 
+### 🚀 Unified Deployment (Recommended)
+
+The application now supports unified deployment where the backend serves the React frontend build. This simplifies deployment and reduces complexity.
+
+#### Quick Unified Deployment
+
+1. **Build and serve from backend**
+```bash
+# Build frontend and start backend server
+npm run start:full
+
+# Or use the deployment script
+./deploy.sh          # Linux/Mac
+deploy.bat           # Windows
+```
+
+2. **Development with unified setup**
+```bash
+# Start both frontend and backend in development mode
+npm run dev:full
+
+# Or start backend serving frontend build
+npm run build:full && npm run start
+```
+
+#### Benefits of Unified Deployment
+- **Single Server**: Only one server to deploy and manage
+- **Simplified CORS**: No CORS issues since everything is served from same origin
+- **Better Performance**: Reduced network requests
+- **Easier Deployment**: Single deployment target
+- **Production Ready**: Optimized for production environments
+
+#### Environment Variables for Unified Deployment
+
+**Backend (.env)**
+```env
+MONGODB_URI=your_mongodb_connection_string
+SESSION_SECRET=your_session_secret_key
+INSTAGRAM_CLIENT_ID=your_instagram_client_id
+INSTAGRAM_CLIENT_SECRET=your_instagram_client_secret
+INSTAGRAM_CALLBACK_URL=http://localhost:5000/api/auth/instagram/callback
+JWT_SECRET=your_jwt_secret_key
+NODE_ENV=production
+PORT=5000
+FRONTEND_URL=http://localhost:5000
+```
+
+#### Deployment Scripts
+
+The project includes convenient deployment scripts:
+
+- `deploy.sh` - Linux/Mac deployment script
+- `deploy.bat` - Windows deployment script
+- `npm run start:full` - Build frontend and start backend
+- `npm run build:full` - Build frontend only
+
 ## 📁 Project Structure
 
 ```
@@ -266,10 +322,13 @@ SocioHiro/
 npm run dev              # Start both frontend and backend
 npm run dev:frontend     # Start frontend only
 npm run dev:backend      # Start backend only
+npm run dev:full         # Start both with unified setup
 
-# Building
+# Building & Unified Deployment
 npm run build            # Build frontend for production
+npm run build:full       # Build frontend and install dependencies
 npm run start            # Start production server
+npm run start:full       # Build frontend and start backend server
 
 # Testing
 npm run test             # Run backend tests

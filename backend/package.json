@@ -5,7 +5,10 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "build": "cd ../frontend && npm install && npm run build",
+    "build:start": "npm run build && npm start",
+    "dev:full": "concurrently \"npm run dev\" \"cd ../frontend && npm run dev\""
   },
   "keywords": [
     "social-media",
@@ -34,6 +37,7 @@
     "qs": "^6.14.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "concurrently": "^8.2.2"
   }
 }

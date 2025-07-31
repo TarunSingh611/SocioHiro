@@ -12,9 +12,12 @@ export default defineConfig({
     host: true
   },
   build: {
-    sourcemap: true
+    sourcemap: true,
+    outDir: 'dist',
+    assetsDir: 'assets'
   },
   define: {
     __DEV__: true
-  }
+  },
+  base: '/'
 })

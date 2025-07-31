@@ -13,7 +13,7 @@ const useUserStore = create(
       loginWithInstagram: async () => {
         try {
           // Redirect to backend Instagram OAuth endpoint
-          window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/auth/instagram/login`;
+          window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/instagram/login`;
         } catch (error) {
           console.error('Instagram login failed:', error);
           throw new Error('Instagram login failed');

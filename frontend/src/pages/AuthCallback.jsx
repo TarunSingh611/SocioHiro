@@ -32,7 +32,7 @@ const AuthCallback = () => {
         } else {
           // Fallback for direct API status check if no data param
           try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/auth/instagram/callback`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/instagram/callback`, {
               credentials: 'include'
             });
             const responseData = await response.json();
