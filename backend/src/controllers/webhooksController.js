@@ -3,6 +3,8 @@ const automationService = require('../services/automationService');
 const { requireAuth } = require('../middleware/auth');
 
 // Verify webhook signature from Instagram
+const { getBaseUrl, getOriginUrl, getWebhookUrl } = require('../utils/urlUtils');
+
 const verifyWebhookSignature = (req, res, next) => {
   const signature = req.headers['x-hub-signature-256'];
   const body = JSON.stringify(req.body);
@@ -337,7 +339,8 @@ const getWebhookConfig = async (req, res) => {
   try {
     const config = {
       verifyToken: process.env.WEBHOOK_VERIFY_TOKEN,
-      callbackUrl: `${process.env.BASE_URL}/webhooks/instagram`,
+      callbackUrl: getWebhookUrl(req, 'instagram'),
+      originUrl: getOriginUrl(req),
       fields: [
         'mentions',
         'comments',

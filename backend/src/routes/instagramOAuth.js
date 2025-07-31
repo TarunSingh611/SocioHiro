@@ -6,12 +6,13 @@ const cron = require('node-cron');
 const User = require('../models/User');
 const JWTService = require('../utils/jwt');
 const SessionService = require('../services/sessionService');
+const { getBaseUrl } = require('../utils/urlUtils');
 
 // Initiate Instagram OAuth login
 router.get('/login', (req, res) => {
     // Use Instagram Business API scopes (these are the NEW correct scopes)
     // Instagram is transitioning TO these scopes, not away from them
-    const instagramLoginUrl = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=532563143212029&redirect_uri=${process.env.INSTAGRAM_CALLBACK_URL}&response_type=code&scope=instagram_business_basic%2Cinstagram_business_manage_messages%2Cinstagram_business_manage_comments%2Cinstagram_business_content_publish%2Cinstagram_business_manage_insights`;
+    const instagramLoginUrl = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=532563143212029&redirect_uri=${getBaseUrl()}/api/auth/instagram/callback&response_type=code&scope=instagram_business_basic%2Cinstagram_business_manage_messages%2Cinstagram_business_manage_comments%2Cinstagram_business_content_publish%2Cinstagram_business_manage_insights`;
     
     res.redirect(instagramLoginUrl);
   });
@@ -119,7 +120,7 @@ router.get('/login', (req, res) => {
         message: 'Successfully authenticated with Instagram'
       }));
   
-      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/callback?data=${userData}`);
+      res.redirect(`${process.env.FRONTEND_URL || getBaseUrl()}/auth/callback?data=${userData}`);
   
     } catch (error) {
       console.error('Instagram OAuth callback error:', error.response?.data || error.message);
@@ -130,7 +131,7 @@ router.get('/login', (req, res) => {
         details: error.response?.data || error.message
       }));
   
-      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/callback?data=${errorData}`);
+      res.redirect(`${process.env.FRONTEND_URL || getBaseUrl()}/auth/callback?data=${errorData}`);
     }
   });
   
