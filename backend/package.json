@@ -6,10 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "build": "cd ../frontend && npm install && npm run build",
-    "build:start": "npm run build && npm start",
-    "dev:full": "concurrently \"npm run dev\" \"cd ../frontend && npm run dev\"",
-    "vercel-build": "echo 'Backend build completed'"
+    "build": "echo 'Backend build completed'",
+    "install": "npm install"
   },
   "keywords": [
     "social-media",
