@@ -11,10 +11,10 @@ import AddAutomation from './pages/AddAutomation';
 import AddCampaign from './pages/AddCampaign';
 import Analytics from './pages/Analytics';
 import Campaigns from './pages/Campaigns';
-
 import Automation from './pages/Automation';
 import AccountSettings from './pages/AccountSettings';
 import Content from './pages/Content';
+import LiveActivity from './pages/LiveActivity';
 import './App.css';
 
 function App() {
@@ -107,7 +107,6 @@ function App() {
             </Layout>
           ) : <Navigate to="/login" replace />
         } />
-
         <Route path="/automation" element={
           isAuthenticated ? (
             <Layout>
@@ -126,6 +125,13 @@ function App() {
           isAuthenticated ? (
             <Layout>
               <Content />
+            </Layout>
+          ) : <Navigate to="/login" replace />
+        } />
+        <Route path="/live-activity" element={
+          isAuthenticated ? (
+            <Layout>
+              <LiveActivity />
             </Layout>
           ) : <Navigate to="/login" replace />
         } />
