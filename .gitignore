@@ -18,18 +18,86 @@ out/
 .fusebox/
 .dynamodb/
 
+# Testing files and directories
 ./backend/testing/
 ./backend/testing
 ./backend/testing/* 
+test/
+tests/
+__tests__/
+*.test.js
+*.test.jsx
+*.test.ts
+*.test.tsx
+*.spec.js
+*.spec.jsx
+*.spec.ts
+*.spec.tsx
+test-results/
+coverage/
+.nyc_output/
+cypress/
+cypress.json
+cypress.config.js
+cypress.config.ts
+playwright-report/
+test-results/
+e2e/
+integration-tests/
+unit-tests/
+jest.config.js
+jest.config.ts
+karma.conf.js
+mocha.opts
+.nyc_output/
+*.lcov
+coverage.lcov
 
-# Environment variables
+# Environment variables and sensitive data
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+.env.staging
+.env.development
+.env.production
 frontend/.env
 backend/.env
+*.env
+.env.*
+
+# API Keys, Tokens, and Secrets
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+secrets.json
+secrets.yaml
+secrets.yml
+config/secrets.json
+config/secrets.yaml
+config/secrets.yml
+*.secret
+*.token
+api-keys.json
+tokens.json
+credentials.json
+auth.json
+private.json
+
+# Database files and backups
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+backup/
+backups/
+*.backup
+*.bak
+*.old
+*.tmp
 
 # Logs
 logs
@@ -39,6 +107,9 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
+error.log
+access.log
+combined.log
 
 # Runtime data
 pids
@@ -212,3 +283,97 @@ docker-compose.override.yml
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Additional sensitive data patterns
+*.private
+*.confidential
+*.internal
+*.secret
+*.token
+*.auth
+*.credential
+*.password
+*.key
+*.cert
+*.pem
+*.p12
+*.pfx
+*.crt
+*.ca
+*.csr
+*.srl
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Instagram API specific sensitive files
+instagram-tokens.json
+instagram-credentials.json
+instagram-secrets.json
+webhook-secrets.json
+webhook-tokens.json
+api-keys.json
+app-secrets.json
+client-secrets.json
+service-account.json
+firebase-key.json
+google-credentials.json
+aws-credentials.json
+azure-credentials.json
+
+# Debug and development files
+debug/
+debug-*.log
+debug-*.json
+debug-*.txt
+*.debug
+debug.log
+debug.json
+debug.txt
+
+# Cache and temporary files
+.cache/
+.temp/
+.tmp/
+*.cache
+*.temp
+*.tmp
+
+# Upload directories (might contain sensitive data)
+uploads/
+upload/
+media/
+images/
+videos/
+documents/
+files/
+
+# Session and user data
+sessions/
+session/
+users/
+user-data/
+*.session
+*.user
+*.profile
+
+# Configuration files that might contain secrets
+config/local.json
+config/local.js
+config/local.yaml
+config/local.yml
+config/development.json
+config/development.js
+config/development.yaml
+config/development.yml
+config/production.json
+config/production.js
+config/production.yaml
+config/production.yml
