@@ -118,7 +118,40 @@ npm run dev:backend   # Backend only
 
 ## 🚀 Deployment
 
-### Vercel Deployment (Frontend)
+### 🚀 Quick Vercel Deployment (Recommended)
+
+The easiest way to deploy SocioHiro is using Vercel's unified deployment. This deploys both frontend and backend to Vercel in one go!
+
+#### One-Click Deploy
+
+1. **Connect to Vercel**
+   - Go to [vercel.com](https://vercel.com)
+   - Import your GitHub repository
+   - Vercel will automatically detect the configuration
+
+2. **Set Environment Variables**
+   Add these in your Vercel project settings:
+   ```env
+   MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/instagramstore
+   SESSION_SECRET=your-super-secret-session-key
+   JWT_SECRET=your-jwt-secret-key
+   INSTAGRAM_CLIENT_ID=your_instagram_client_id
+   INSTAGRAM_CLIENT_SECRET=your_instagram_client_secret
+   INSTAGRAM_CALLBACK_URL=https://your-app.vercel.app/api/auth/instagram/callback
+   FRONTEND_URL=https://your-app.vercel.app
+   VITE_API_URL=https://your-app.vercel.app
+   NODE_ENV=production
+   ```
+
+3. **Deploy**
+   - Click "Deploy" in Vercel
+   - Your app will be live in minutes!
+
+📖 **Detailed Guide**: See [VERCEL_QUICK_DEPLOY.md](./VERCEL_QUICK_DEPLOY.md) for complete setup instructions.
+
+### Alternative: Separate Frontend/Backend Deployment
+
+#### Frontend Deployment (Vercel)
 
 1. **Connect to Vercel**
 ```bash
@@ -136,7 +169,7 @@ vercel --prod
 - `VITE_API_URL` - Your backend API URL
 - `VITE_INSTAGRAM_CLIENT_ID` - Instagram Client ID
 
-### Backend Deployment (Railway/Render)
+#### Backend Deployment (Railway/Render)
 
 1. **Deploy to Railway**
 ```bash

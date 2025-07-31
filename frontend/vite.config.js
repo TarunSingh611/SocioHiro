@@ -17,7 +17,10 @@ export default defineConfig({
     assetsDir: 'assets'
   },
   define: {
-    __DEV__: true
+    __DEV__: process.env.NODE_ENV === 'development',
+    // Ensure environment variables are available at build time
+    'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || ''),
+    'import.meta.env.VITE_INSTAGRAM_CLIENT_ID': JSON.stringify(process.env.VITE_INSTAGRAM_CLIENT_ID || '')
   },
   base: '/'
 })

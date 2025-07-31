@@ -1,7 +1,17 @@
 import axios from 'axios';
 
+// Get API URL with fallback for build time
+const getApiUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl) {
+    return envUrl;
+  }
+  // Fallback for build time or when env var is not set
+  return 'https://your-backend-url.vercel.app';
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL + '/api',
+  baseURL: getApiUrl() + '/api',
   timeout: 30000, // Increased from 10000 to 30000 (30 seconds)
   headers: {
     'Content-Type': 'application/json',
