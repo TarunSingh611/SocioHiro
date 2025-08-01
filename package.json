@@ -10,10 +10,8 @@
     "build": "cd frontend && npm run build",
     "build:frontend": "cd frontend && npm run build",
     "start": "cd backend && npm start",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "vercel-build": "cd frontend && npm run build",
-    "vercel-dev": "npm run dev:frontend",
-    "postinstall": "npm run install:all"
+    "vercel-dev": "npm run dev:frontend"
   },
   "keywords": [
     "social-media",
