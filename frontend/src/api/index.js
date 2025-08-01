@@ -6,8 +6,8 @@ const getApiUrl = () => {
   if (envUrl) {
     return envUrl;
   }
-  // Fallback for build time or when env var is not set
-  return 'https://your-backend-url.vercel.app';
+  // Fallback for Vercel deployment - same domain as frontend
+  return window.location.origin;
 };
 
 const api = axios.create({
