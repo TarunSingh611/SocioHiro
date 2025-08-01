@@ -21,11 +21,5 @@
       "src": "/(.*)",
       "dest": "/$1"
     }
-  ],
-  "builds": [
-    {
-      "src": "api/package.json",
-      "use": "@vercel/node"
-    }
   ]
 } 
